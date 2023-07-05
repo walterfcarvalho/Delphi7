@@ -1,0 +1,742 @@
+unit uRotinasDiversas;
+
+interface
+
+uses
+  uEstoque, ADOdb, Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, db, adLabelEdit, ComCtrls;
+
+type
+  TfmRotinasDiversas = class(TForm)
+    Button1: TButton;
+    ed1: TadLabelEdit;
+    ed2: TadLabelEdit;
+    ed3: TadLabelEdit;
+    cbTarefas: TListBox;
+    ed4: TadLabelEdit;
+
+	 procedure ajCustoNfImp(arqXmlEnt, arqXmlTrf, isNotaEnt, isNotaTrf:String);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure Button1Click(Sender: TObject);
+    procedure cargaEansDoIvicon();
+    procedure Edit1DblClick(Sender: TObject);
+    procedure ImportaCadastroIvicom();
+    procedure ajustaSeqNossonumero();
+    procedure insereItensDeUsoconsumo();
+    procedure cbTarefasChange(Sender: TObject);
+    procedure geraNotasTransfEdgar();
+    procedure FormCreate(Sender: TObject);
+    procedure confereAcertoDeInventario();
+    procedure recalcularCmuItens(uo:String; di, df:Tdate);
+    procedure recaulculaCustoFiscal(di, df:Tdate);
+    procedure recalcCustoFiscalCmuPorItem(tipo:String);
+    procedure getNf(ed:TadLabelEdit);
+    procedure ed1DblClick(Sender: TObject);
+    procedure ed2DblClick(Sender: TObject);
+    procedure ed3DblClick(Sender: TObject);
+    procedure ed4DblClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  fmRotinasDiversas: TfmRotinasDiversas;
+
+implementation
+
+uses cf, f, uMain, fdt, uDm, uFiscal, msg, uPreco, uProd, uAcbr;
+
+{$R *.dfm}
+
+
+function getDVNossNum(nossoNum:String):String;
+var
+  soma, fator, i:integer;
+begin
+   f.gravaLog('getDVNossNum() nossoNumero:'+ nossoNum);
+   fator := 2;
+   soma :=0;
+
+   for i:= length(nossoNum) downto 1 do
+   begin
+      soma := soma +  strToInt(nossoNum[i]) * fator;
+//      f.gravaLog('dig:' + nossoNum[i] + ' fator:'+ intTostr(Fator));
+      fator := fator + 1;
+   end;
+
+   f.gravaLog('soma:' + intTostr(soma));
+
+   soma := soma mod 11;
+   if (soma <= 1) then
+      soma := 0
+   else
+   begin
+      soma := 11 - soma;
+   end;
+
+   f.gravaLog('dv:' + intToStr(soma));
+
+   result := intToStr(soma);
+end;
+
+
+procedure TfmRotinasDiversas.FormClose(Sender: TObject;
+  var Action: TCloseAction);
+begin
+   f.salvaCampos(fmRotinasDiversas);
+
+    action := caFree;
+    fmRotinasDiversas := nil ;
+end;
+
+procedure TfmRotinasDiversas.cargaEansDoIvicon();
+var
+   arq:TSTringlist;
+   i:integer;
+   ds:TdataSet;
+   is_ref, cd_ref, ean1, ean2:String;
+begin
+   arq:= TSTringlist.Create();
+   arq.LoadFromFile(ed1.Text);
+
+   for i:= 11 to arq.Count-1 do
+   begin
+      cd_ref := trim(copy(arq[i], 107, 08)  );
+      ds:=  uProd.getDadosProd( fmMain.getUOCD(), cd_ref, '', '101', false);
+      if ( ds.IsEmpty = false ) then
+      begin
+
+        ean1 := trim(copy(arq[i], 01, 13) );
+        ean2 := trim(copy(arq[i], 14, 13) );
+        is_ref := ds.fieldByName('is_ref').asString ;
+
+        uEstoque.insereEAN(is_ref, ean1);
+        uEstoque.insereEAN(is_ref, ean2);
+
+        fmMain.msgStatus(intToStr(i));
+      end;
+      ds.Free();
+   end;
+end;
+
+procedure TfmRotinasDiversas.Edit1DblClick(Sender: TObject);
+begin
+   Ed1.Text := f.dialogAbrArq('txt', 'c:\');
+end;
+
+procedure TfmRotinasDiversas.ImportaCadastroIvicom;
+var
+  dsItem, ds:TdataSet;
+  is_ref, cd_ref, cmd :String;
+begin
+   cmd := 'Select * from zcf_juntaContLoja';
+   ds:= dm.getDataSetQ(cmd);
+
+   ds.First();
+
+   while ( ds.Eof = false ) do
+   begin
+      // testar pelo codigo da loja com 7 posicoes.
+      cd_ref :=  copy( ds.fieldByName('ean').asString, 06, 07);
+      dsItem := uProd.getDadosProd(fmMain.getUOCD(), cd_ref, '', '101', false );
+
+      if (dsItem.IsEmpty = true) then
+      begin
+         dsItem.Free();
+      // testar pelo codigo da loja com 8 posicoes.
+         cd_ref :=  copy( ds.fieldByName('ean').asString, 05, 08);
+         dsItem := uProd.getDadosProd(fmMain.getUOCD(), cd_Ref , '', '101', false );
+      end;
+
+      if (dsItem.IsEmpty = true) then
+      begin
+         dsItem.Free();
+      // testar pelo ean
+         cd_ref :=  ds.fieldByName('ean').asString;
+         dsItem := uProd.getDadosProd(fmMain.getUOCD(), cd_ref, '', '101', false );
+      end;
+
+      if (dsItem.IsEmpty = false) then
+      begin
+         is_ref := quotedStr(dsItem.fieldByName('is_ref').asString);
+         cd_ref := quotedStr(dsItem.fieldByName('codigo').asString);
+         cmd :=
+         ' update zcf_juntaContLoja set  ' +
+         ' is_ref = ' + is_ref + ', '+
+         ' cd_ref = ' + cd_ref +
+         ' where ean= ' +
+         quotedStr(ds.fieldByName('ean').AsString);
+
+        dm.execSQL(cmd);
+
+      end;
+      sleep(300);
+      fmMain.msgStatus(intToStr(ds.RecNo)  + ' de ' + intToStr(ds.RecordCount) );
+      dsItem.Free();
+      ds.Next();
+   end;
+end;
+
+procedure TfmRotinasDiversas.ajustaSeqNossonumero;
+var
+   ds:TdataSet;
+   seqNossoNumero:real;
+   seq, dv:String;
+   cmd, agente:String;
+begin
+   agente := ed1.Text;
+
+   cmd :='select seq_nosso_num from dsagn where cb_codagen= '+ agente;
+   seqNossoNumero := strToFloat(dm.openSQL( cmd, ''));
+
+   cmd :=
+   ' select * from dsdup where' +
+   ' cb_codagen in (4)' +
+   ' and  dat_emis between ' + fdt.dataToSqlInt(strToDate(ed2.Text)) +
+   ' and ' + fdt.dataToSqlInt(strToDate(ed3.Text)) +
+   ' order by cb_ndup_ba';
+
+   ds:= dm.getDataSetQ(cmd);
+
+   ds.First();
+   while ( ds.Eof = false) do
+   begin
+      seqNossoNumero := seqNossoNumero +1;
+
+      seq := floatToStr(seqNossoNumero);
+      dv:= getDVNossNum(ds.fieldByName('cb_ndup_ba').AsString);
+
+      cmd :=
+      ' update dsdup set ' +
+      ' cb_ndup_ba= ' + f.preencheCampo(7, '0', 'E', seq) + ', '+
+      ' CB_PDUP_BA= ' + dv +
+      ' where' +
+      ' chv_dup = ' + quotedStr( trim(ds.fieldByName('chv_dup').AsString))+
+      ' and par_tit = ' + quotedStr(trim(ds.fieldByName('par_tit').AsString));
+
+      dm.execSQL(cmd);
+      ds.Next();
+   end;
+
+   cmd :=
+   'update dsagn set seq_nosso_num = ' + seq +
+   ' where cb_codagen= ' + ed1.Text;
+   dm.execSQL(cmd);
+
+   ds.Free();
+
+end;
+
+procedure TfmRotinasDiversas.insereItensDeUsoconsumo;
+var
+  executa:boolean;
+begin
+   executa := (fdt.isDataValida(ed2.Text) and fdt.isDataValida(ed3.Text));
+   executa := (StrToDate(ed3.Text)  >= StrToDate(ed2.Text));
+
+   if executa = false then
+      msg.msgErro('Problema com o preenchimento das datas.')
+   else
+      uEstoque.inserirItensNotasUsoConsumo(
+         strToDate(ed2.Text),
+         strToDate(ed3.Text),
+         fmMain.getUserLogado()
+      );
+end;
+
+procedure TfmRotinasDiversas.cbTarefasChange(Sender: TObject);
+begin
+   ed1.Visible := false;
+   ed1.LabelDefs.Caption := '';
+
+   ed2.Visible := false;
+   ed2.LabelDefs.Caption := '';
+
+   ed3.Visible := false;
+   ed3.LabelDefs.Caption := '';
+
+   ed4.Visible := false;
+   ed4.LabelDefs.Caption := '';
+
+   case cbTarefas.ItemIndex of
+   3:begin
+        ed2.LabelDefs.Caption := 'Data inicial';
+        ed3.LabelDefs.Caption := 'Data final';
+     end;
+   4:begin
+        // notas de transferencia ente lojas com base no estoque
+
+        ed1.LabelDefs.Caption := 'uo loja origem';
+        ed1.Text := '10052174';  // 10052174 = avarias  total
+
+        ed2.LabelDefs.Caption := 'uo loja destino';
+        ed2.Text := '10033590'; // 10033590 = messejana
+
+        ed3.LabelDefs.Caption := 'sq_OPf';
+        ed3.Text := '10000247';      // 10000202 tranf os transferencia
+     end;
+   5:begin
+        ed1.LabelDefs.Caption:= ' data do inventario: ' ;
+        ed1.Text := '27/06/2012';
+
+        ed2.LabelDefs.Caption:= 'Local dos arquivos: ' ;
+     end;
+   6:begin  // calculo de CMU
+        ed1.Text := '';
+        ed1.LabelDefs.Caption:= 'CMU até o dia:' ;
+        ed2.LabelDefs.Caption:= 'Dia inicio:' ;
+        ed3.LabelDefs.Caption:= 'Dia Fim:' ;
+     end;
+   7:begin
+        ed1.LabelDefs.Caption:= 'Entradas, inicio:' ;
+        ed2.LabelDefs.Caption:= 'Entradas, fim:' ;
+        ed3.LabelDefs.Caption:= '';
+     end;
+   8:begin
+        ed1.LabelDefs.Caption:= 'Isref inicial:' ;
+        ed2.LabelDefs.Caption:= 'Isref final:' ;
+        ed3.LabelDefs.Caption:= 'Tempo entre operações: ';
+     end;
+   9:begin
+        ed1.LabelDefs.Caption:= 'Entradas, inicio:' ;
+        ed2.LabelDefs.Caption:= 'Entradas, fim:' ;
+        ed3.LabelDefs.Caption:= 'Tempo entre operações: ';
+     end;
+   12:begin
+        ed1.LabelDefs.Caption:= 'Xml Nf Importação:';
+        ed2.LabelDefs.Caption:= 'XML Nf transferência:';
+        ed3.LabelDefs.Caption:= 'Identificação Nf Entrada:';
+        ed4.LabelDefs.Caption:= 'Identificação Nf transferência:';
+
+      end;
+   end;
+   ed1.Visible  := (ed1.LabelDefs.Caption <> '');
+   ed2.Visible  := (ed2.LabelDefs.Caption <> '');
+   ed3.Visible  := (ed3.LabelDefs.Caption <> '');
+   ed4.Visible  := (ed4.LabelDefs.Caption <> '');
+end;
+
+procedure TfmRotinasDiversas.geraNotasTransfEdgar();
+var
+   ds:TdataSet;
+   tbName, cmd:String;
+   i, nLinTb, nItensNF, seqInicio:integer;
+   uoOrigem, uoDestino, sq_opf:String;
+begin
+   deleteFile('notas.txt');
+//	msg.msgExclamation('em manutenção');
+   i:=0;
+
+   nItensNF := 120;
+
+   f.gravaLog('-------------------- Inicio geracao das notas' );
+
+   seqInicio :=  strtoInt(dm.openSQL('select min(seq) from  zcf_contLoja', ''));
+   nLinTb :=    seqInicio + 1;  strtoInt(dm.openSQL('select max(seq) from  zcf_contLoja', ''));
+
+   while (seqInicio <  nLinTb ) do
+   begin
+      inc(i);
+      fmMain.msgStatus('Notas dos itens :' + intToStr(seqInicio) +' a '+ intToStr( seqInicio + nItensNF ) );
+
+      f.gravaLog(' seq inicio: ' + intToStr(seqInicio) + ' seq Fim: ' +intToStr(seqInicio + nItensNF -1));
+
+      tbName := dm.getNomeTableTemp();
+
+      cmd :=  dm.getCMD3('Fiscal', 'getItensTransf', tbName,  intToStr(seqInicio),  intToStr(seqInicio + nItensNF) );
+      ds:=   dm.getdataSetq(cmd);
+
+      uoOrigem:= ed1.Text;
+      uoDestino:= ed2.Text;
+      sq_opf := ed3.Text;
+
+      f.GravaLinhaEmUmArquivo(
+        'notas.txt',
+         uFiscal.gerarNf(fmMain.getUserLogado(), uoOrigem, uoDestino, uoDestino, fmMain.getUserLogado(), sq_opf, '', dm.getDateBd(), '-1', false, ds)
+      );
+
+      seqInicio := seqInicio + nItensNF;
+      ds.Free();
+   end;
+   f.GravaLinhaEmUmArquivo('notas.txt', 'numero de notas:' + intToStr(i));
+   fmMain.msgStatus('');
+   msg.msgExclamation('notas.txt', '');
+   deleteFile('notas.txt');
+end;
+
+procedure TfmRotinasDiversas.FormCreate(Sender: TObject);
+begin
+   cbTarefasChange(nil);
+   f.carregaCampos(fmRotinasDiversas);
+
+   cbTarefas.ItemIndex := -1;
+end;
+
+procedure TfmRotinasDiversas.confereAcertoDeInventario;
+var
+   files:TStrings;
+   i:integer;
+   arqSaida:String;
+begin
+{
+   pega is itens de um inventario e verifica se houve lancamento de acerto de estoque no dia
+   se nap nouver ele lanca o acerto de estoque
+}
+   arqSaida:= 'c:\itensNaoefetivadosMatriz.txt';
+
+   deleteFile(arqSaida);
+
+   files := f.dialogAbrVariosArq('txt','c:\');
+
+   if (files <> nil) then
+   begin
+      for i:=0 to files.Count -1 do
+      begin
+        fmMain.msgStatus('arq:' + files[i]);
+        uEstoque.confereInvLoja('10033586', files[i], arqSaida, strToDate(ed1.Text));
+      end;
+      files.Free();
+   end;
+   fmMain.msgStatus('');
+end;
+
+procedure TfmRotinasDiversas.recalcularCmuItens(uo:String; di, df:Tdate);
+var
+  dsIt:TdataSet;
+  cmd:String;
+begin //
+   f.gravaLog('---------- recalcularCmuItens()---------- ');
+   deleteFile(f.getDirLogs() + 'Log_custo.txt');
+
+   // pegar os itens que serao recalculados
+   cmd := dm.getCMD3('estoque', 'getItRecCMU', uo, fdt.dateToSqlDate(di), fdt.dateToSqlDate(df));
+   dsIt := dm.getDataSetQ(cmd);
+
+   dsIt.First();
+   while (dsIt.Eof = false) do
+   begin
+      fmMain.msgStatus( intToStr(dsIt.RecNo) + ' de ' +  intToStr(dsIt.RecordCount) );
+
+      uPreco.ajustaCMUItemCompleto(dsIt.fieldByName('is_ref').AsString, fmMain.getCdPesLogado(), di, df);
+
+      f.gravaLog('Custo calculado: ' + dsIt.fieldByName('is_ref').AsString);
+
+      dsIt.Next();
+   end;
+   dsIt.Free();
+   fmMain.msgStatus('');
+end;
+
+procedure TfmRotinasDiversas.recaulculaCustoFiscal(di, df: Tdate);
+var
+  dsIt, dsEnt:TdataSet;
+  is_ref, cmd:String;
+  custoNovo:String;
+  dtItI, dtItF :Tdate;
+begin
+   f.gravaLog('');
+   f.gravaLog('recaulculaCustoFiscal()');
+
+   cmd := dm.getCMD2('estoque', 'getItRecCusto', fdt.dateToSqlDate(di), fdt.dateToSqlDate(df));
+   dsIt := dm.getDataSetQ(cmd);
+
+   dsIt.First();
+
+   dtItF := now;
+
+   while (dsIt.Eof = false) do
+   begin
+      fmMain.msgStatus('Item ' + intToStr(dsIt.RecNo) + ' de ' + intToStr(dsIt.RecordCount) );
+
+      is_ref := dsIt.fieldByName('is_ref').AsString;
+
+      dsEnt := uEstoque.getEntradasPorItem(is_ref, '', strToDate('01/01/2001'), now);
+      dsEnt.First();
+
+      dtItI := dsEnt.fieldByName('data').AsDateTime;
+
+      while (dsEnt.Eof = false) do
+      begin
+         sleep(50);
+         custoNovo := floatToMoney(uPreco.calcCustoEnt('Normal', 'F', dsEnt, nil, nil, nil, 0, nil));
+
+         upreco.ajustaPcCusto('0', is_ref, '1', di, dtItI, dtItF, '0', custoNovo, fmMain.getCdPesLogado);
+
+         dtItF := dsEnt.fieldByName('data').AsDateTime;
+
+         dsEnt.Next();
+
+         dtItI := dsEnt.fieldByName('data').AsDateTime;
+      end;
+      dsIt.Next;
+   end;
+end;
+
+procedure TfmRotinasDiversas.recalcCustoFiscalCmuPorItem(tipo:String);
+var
+	ped,cmd:String;
+   dsEntIt, dsIt:Tdataset;
+   custoF, custoG:real;
+   timeOut:integer;
+begin
+	timeOut := 300;
+
+   if (tipo = 'porIsref') then
+   begin
+ 		dsIt := uProd.getItens(ed1.Text, ed2.Text)
+   end
+
+   else if (tipo = 'select') then
+   begin
+   	cmd := msg.msgInput('');
+		dsIt := dm.getDataSetQ(cmd);
+   end
+
+   else if (tipo = 'cd_refs') then
+		dsIt := uprod.getIsrefsFromCdref( msg.getTString('Informar o cd_ref'))
+
+   else if (tipo = 'pedido') then
+   begin
+   	ped := msg.msgInput('Digite o número do pedido: ', '0');
+      if (cmd = '') or (cmd = '0')
+      	then cmd := '-1';
+
+      cmd := dm.getCMD('pedCliente', 'getIsrefsItensPedido.errCusto');
+
+		dsIt := dm.getDataSetQ(  dm.getCMD2('pedCliente', 'getIsrefsItensPedido', ped, cmd));
+   end
+
+   else if (tipo = 'nf') then
+   begin
+   	cmd :=  uFiscal.getIsNota();
+
+      if (cmd <> '') then
+	   	dsIt := uFiscal.getItensNota(cmd);
+   end
+   else
+		dsIt := uprod.getProdVendidoPorData(strToDate(ed1.Text), strToDate(ed2.Text));
+
+   dsIt.First();
+   while (dsIt.Eof = false) do
+   begin
+		fmMain.msgStatusProgresso(dsIt.RecNo, dsIt.RecordCount, 'Calculando...' );
+
+   	dsEntIt := uProd.getIsLancUltEnt(dsIt.fieldByName('is_ref').AsString, '999');
+
+      if (dsEntIt.IsEmpty = false) then
+      begin
+      	custoF :=0;
+         custoG :=0;
+
+         custof := uPreco.calcCustoEnt('Normal', 'F', dsEntIt, nil, nil, nil,0, nil);
+         custoG := uPreco.calcCustoEnt('Normal', 'G', dsEntIt, nil, nil, nil,0, nil);
+
+// gravar na tabela zcf_custos
+         uPreco.ajustaZcf_custos(
+				dsEntIt.fieldByName('is_ref').AsString,
+         	dsEntIt.fieldByName('is_lanc').AsString,
+         	dsEntIt.fieldByName('dt_mov').AsDateTime,
+            custoF,
+            custoG
+         );
+
+         upreco.ajustaCustosPorIsLanc(
+         	dsEntIt.fieldByName('is_lanc').AsString,
+				dsEntIt.fieldByName('is_ref').AsString,
+            custoF,
+            custoG
+         );
+
+      end;
+      dsEntIt.Free();
+      dsIt.Next();
+      sleep( timeOut );
+   end;
+   dsIt.free();
+   fmMain.msgStatus('');
+   msg.msgExclamation(dm.getMsg('MSG_SUCESSO'));
+end;
+
+procedure TfmRotinasDiversas.ajCustoNfImp(arqXmlEnt, arqXmlTrf, isNotaEnt, isNotaTrf:String);
+var
+	cmd:String;
+   tbNfTransf:TADOTable;
+   qrNfImp:TadoQuery;
+   custoF, custoG:real;
+   dsNfEnt, dsItensNfEnt:Tdataset;
+   dsItTrf, dsItEnt, dsEnt, dsTrf: TdataSet;
+   tbCusto:TADOTable;
+   i:integer;
+begin
+{	DeleteFile(f.getDirLogs() + 'custoImportado.txt');
+
+   tbCusto := TADOTable.Create(nil);
+   dm.getTable(tbCusto, dm.getCMD('sql','tbCustoNfImport'));
+
+	tbNfTransf := TADOTAble.Create(nil);
+   uFiscal.getTbajNotas(tbNfTransf, isNotaTrf);
+
+   tbNfTransf.First();
+
+
+   dsItEnt := uacbr.getDaDosXml(arqXmlEnt, f.getDirExe() +'nfeEntItens.xtr');
+   
+   dsItEnt.First;
+   for i:= 1 to dsItEnt.RecordCount do
+   begin
+   	f.gravaLinhaEmUmArquivo('c:\cod.txt', dsItEnt.fieldByName('cProd').AsString);
+      dsItEnt.Next;
+   end;
+
+   dsEnt :=   uacbr.getDaDosXml(arqXmlEnt, f.getDirExe() +'nfeEntTotais.xtr');
+
+	dsItTrf := uacbr.getDaDosXml(arqXmlTrf, f.getDirExe() +'nfeEntItens.xtr');
+
+   dsTrf :=   uacbr.getDaDosXml(arqXmlTrf, f.getDirExe() +'nfeEntTotais.xtr');
+
+// pegar os dados da cabeça da nota de  entrada no sistema
+   dsNfEnt := uFiscal.getDadosNota(isNotaEnt);
+   dsItensNfEnt := uFiscal.getItensNota(isNotaEnt);
+
+	dsItEnt.First();
+	while (dsItEnt.Eof = false) do
+   begin
+		fmMain.msgStatusProgresso(dsItEnt.RecNo, dsItEnt.RecordCount, 'Calculando...' );
+
+
+      if (dsItTrf.Locate('cProd', dsItEnt.fieldByName('cProd').asString, []) = true) then
+      begin
+
+			tbNfTransf.Locate('cd_ref', dsItEnt.fieldByName('cProd').asString, []);
+
+  			f.gravaLog('Codigo:' + dsItTrf.fieldByName('cProd').asString);
+
+	      custof :=
+         uPreco.calcCustoEnt('importacao', 'F',
+         	dsItTrf, dsItEnt, dsItTrf, dsTrf,
+         	dsNfEnt.fieldByName('VL_DSPEXTRA').asFloat, tbNfTransf
+			);
+
+  	      custoG :=
+         uPreco.calcCustoEnt('importacao', 'G',
+         	dsItTrf, dsItEnt, dsItTrf, dsTrf,
+         	dsNfEnt.fieldByName('VL_DSPEXTRA').asFloat, tbNfTransf
+			);
+
+
+         if (dsItensNfEnt.Locate('cd_ref', dsItEnt.fieldByName('cProd').asString, []) = true) then
+			begin
+         	cmd := '';
+         	cmd := uEstoque.getIsLancFromIsMovi(dsItensNfEnt.FieldByName('is_movi').AsString);
+
+            if (cmd <> '') then
+            begin
+               tbCusto.AppendRecord([
+                  dsItensNfEnt.FieldByName('is_ref').AsString,
+                  cmd,
+                  custoF,
+                  custoG
+               ])
+            end
+            else
+            	msg.msgErro('Não achei a movimentação de estoque desse item,' + #13 + ' Não posso calcular esse custo.');
+
+         end
+         else
+         begin
+         	msg.msgErro('Eu não achei o produto' + dsItEnt.fieldByName('cProd').asString + ' referenciado no XML'+
+            		 ' de entrada na nota fiscal de entrada informada no sistema,' + #13 + ' Não posso calcular esse custo.');
+         end;
+
+      end
+      else
+      begin
+			cmd :=
+         ' - O produto' + dsItEnt.fieldByName('cProd').asString + ' do XML de entrada não consta nos itens da nota de transferência ' +
+         #13 + ' Não posso calcular esse custo.';
+
+			msg.msgErro(cmd);
+      end;
+		dsItEnt.Next();
+   end;
+   tbNfTransf.free();
+
+   fmMain.msgStatus('');
+
+   Winexec(pchar('notepad.exe '+getDirLogs()+ 'custoImportado.txt'),sw_normal);
+
+   f.gravaLog(tbCusto, tbCusto.TableName);
+
+   if (tbCusto.IsEmpty = false) then
+      if ( msg.msgQuestion('Deseja aplicar esses custos?') = mrYes )then
+      begin
+         tbCusto.First();
+         while tbCusto.Eof = false do
+         begin
+            upreco.ajustaCustosPorIsLanc(
+               tbCusto.fieldByName('is_lanc').AsString,
+               tbCusto.fieldByName('is_ref').AsString,
+               custoF,
+               custoG
+            );
+            tbCusto.Next();
+  	 	   end;
+	   end;
+
+   msg.msgExclamation('Processo finalizado.');
+}
+end;
+
+procedure TfmRotinasDiversas.getNf(ed:TadLabelEdit);
+begin
+	if cbTarefas.ItemIndex = 12 then
+		ed.Text := f.dialogAbrArq('xml', 'c:\');
+end;
+
+procedure TfmRotinasDiversas.ed1DblClick(Sender: TObject);
+begin
+	getNf(ed1);
+end;
+
+procedure TfmRotinasDiversas.ed2DblClick(Sender: TObject);
+begin
+	getNf(ed2);
+end;
+
+procedure TfmRotinasDiversas.ed3DblClick(Sender: TObject);
+begin
+	if cbTarefas.ItemIndex = 12 then
+	   ed3.Text := uFiscal.getIsNota();
+end;
+
+procedure TfmRotinasDiversas.ed4DblClick(Sender: TObject);
+begin
+	if cbTarefas.ItemIndex = 12 then
+	   ed4.Text := uFiscal.getIsNota();
+end;
+
+procedure TfmRotinasDiversas.Button1Click(Sender: TObject);
+begin
+  case cbTarefas.ItemIndex of
+     0:cargaEansDoIvicon();
+     1:ImportaCadastroIvicom();
+     2:ajustaSeqNossonumero();
+     3:insereItensDeUsoconsumo();
+     4:geraNotasTransfEdgar();
+     5:confereAcertoDeInventario();
+     6:recalcularCmuItens(ed1.Text, strToData(ed2.Text), strToData(ed3.Text));
+     7:recaulculaCustoFiscal(strToDate(ed1.Text),strToDate(ed2.Text));
+     8:recalcCustoFiscalCmuPorItem('porIsref');
+     9:recalcCustoFiscalCmuPorItem('porData');
+     10:recalcCustoFiscalCmuPorItem('select');
+     11:recalcCustoFiscalCmuPorItem('cd_refs');
+     13:recalcCustoFiscalCmuPorItem('pedido');
+     12:ajCustoNfImp(ed1.Text, ed2.Text, ed3.Text, ed4.Text);
+     14:recalcCustoFiscalCmuPorItem('nf');
+  end;
+end;
+
+
+end.

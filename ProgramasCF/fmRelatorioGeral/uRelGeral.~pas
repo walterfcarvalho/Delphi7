@@ -1,0 +1,535 @@
+unit uRelGeral;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, DB, ADODB, ComCtrls, StdCtrls, TFlatButtonUnit, adLabelComboBox,
+  Grids, DBGrids, fCtrls, ExtCtrls, adLabelEdit;
+
+type
+  TfmRelGeral = class(TForm)
+    tbValoresAvarias: TADOTable;
+    tbValoresAvariasis_uo: TStringField;
+    tbValoresAvariasds_uo: TStringField;
+    tbValoresAvariasTipoAvaria: TStringField;
+    tbValoresAvariasqtItens: TIntegerField;
+    tbValoresAvariasvalorTotalCusto: TBCDField;
+    tbValoresAvariasvalorTotalPcVarejo: TBCDField;
+    tbValoresAvariasTotalVendido: TBCDField;
+    tbValoresAvarias_Total: TADOTable;
+    tbValoresAvarias_TotaltipoAvaria: TStringField;
+    tbValoresAvarias_TotalqtItens: TIntegerField;
+    tbValoresAvarias_TotalvalorTotalCusto: TBCDField;
+    tbValoresAvarias_TotalvalorTotalVenda: TBCDField;
+    tbValoresAvariasFornecedor: TStringField;
+    tbValoresAvarias_Totalfornecedor: TStringField;
+    tbPreviaDeCaixa: TADOTable;
+    tbOperadores: TADOTable;
+    tbTotRec: TADOTable;
+    tbSangrias: TADOTable;
+    tbTotReccd_mve: TStringField;
+    tbTotRecvalor: TBCDField;
+    tbSangriascd_mve: TStringField;
+    tbSangriasvalor: TBCDField;
+    tbVendasCartao: TADOTable;
+    tbVendasCartaocodLoja: TIntegerField;
+    tbVendasCartaocd_mve: TIntegerField;
+    tbVendasCartaods_mve: TStringField;
+    tbVendasCartaoseqTransacaoCaixa: TIntegerField;
+    tbVendasCartaovalor: TBCDField;
+    tbVendasCartaonumparcelas: TIntegerField;
+    tbVendasCartaotp_mve: TStringField;
+    tbVendasCartaotefMagnetico: TStringField;
+    pnParam: TPanel;
+    cbLojas: TadLabelComboBox;
+    btOk: TFlatButton;
+    GroupBox1: TGroupBox;
+    Label1: TLabel;
+    di: TfsDateTimePicker;
+    df: TfsDateTimePicker;
+    cbDetAvaForn: TfsCheckBox;
+    cbCaixas: TadLabelComboBox;
+    qr: TADOQuery;
+    qris_uo: TIntegerField;
+    qrds_uo: TStringField;
+    qrcd_ref: TStringField;
+    qrds_ref: TStringField;
+    qrpedido: TIntegerField;
+    qrqt: TIntegerField;
+    qrund: TBCDField;
+    qrtVenda: TBCDField;
+    qrpcVarejo: TBCDField;
+    qrtVarejo: TBCDField;
+    qrcmu: TBCDField;
+    qrtCMU: TBCDField;
+    qrDifCMU: TBCDField;
+    qrDifVenda: TBCDField;
+    qrprejuizo: TBCDField;
+    pnSelCat: TPanel;
+    lbNivel: TLabel;
+    lbVlCat: TLabel;
+    lbClasse1: TLabel;
+    lbClasse2: TLabel;
+    lbClasse3: TLabel;
+    Bevel1: TBevel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label2: TLabel;
+    FlatButton7: TFlatButton;
+
+    function getParametrosRelatorioAvarias():TstringList;
+    procedure ajustaTelaParaAvarias();
+    procedure ajustaTelaParaCargaConciliacao();
+    procedure produtosTransferidosAjustaTela();
+    procedure produtosTransferidosGeraLista();
+    procedure ajustaTelaParaRelCartoes();
+    procedure btOkClick(Sender: TObject);
+    procedure calCulaTotalAvariasPorFornecedor();
+    procedure calCulaTotalAvariasPorLoja();
+    procedure calCulaValoresAvarias();
+    procedure cargaDadosConciliacao();
+    procedure cbLojasClick(Sender: TObject);
+    procedure diChange(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormShow(Sender: TObject);
+    procedure gerarVendaAvarias();
+    procedure getDescCaixas();
+    procedure listaVendasEmCartao();
+    procedure setPerfil(p:integer);
+    procedure FlatButton7Click(Sender: TObject);
+    procedure validaDatas(igualaDatas:boolean);
+    procedure dfChange(Sender: TObject);
+    procedure ajVisibilidadePnCat(visible: integer);
+    procedure cbCaixasSelect(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  fmRelGeral: TfmRelGeral;
+  PERFIL:integer;
+  IS_GRUPO_PERMITIDO_CARTAO:boolean;
+  QT_DIAS_INTERV_DATA:integer;
+implementation
+
+uses uMain, uCf, f, uDm, uFiscal, uEstoque, uLj, msg, uCartoes, uCaixa,
+     fdt, Math;
+
+{$R *.dfm}
+
+procedure TfmRelGeral.ajVisibilidadePnCat(visible: integer);
+begin
+   f.gravaLog(intToStr(visible));
+   if ( visible = 1 ) then
+   begin
+      pnSelCat.Visible := true;
+      pnParam.Height := 150;
+   end
+   else
+   begin
+      pnSelCat.Visible := false;
+      pnParam.Height := 90;
+   end;
+end;
+
+procedure TfmRelGeral.validaDatas(igualaDatas:boolean);
+var
+  qtDiasInterv:integer;
+begin
+   if (igualaDatas = true) then
+      df.Date := di.Date;
+
+   if (fmMain.isAcessoTotal(PERFIL) = true) then
+      qtDiasInterv := 9999
+   else
+      qtDiasInterv := 31;
+
+   fdt.isIntervDataValido(di, df, true, qtDiasInterv);
+end;
+
+procedure TfmRelGeral.ajustaTelaParaAvarias;
+begin
+   di.Date := now;
+   df.Date := now;
+
+   uLj.getListaLojas( cbLojas, true, false, fmMain.getCdPesLogado(), '' );
+   fmRelGeral.caption := 'Valores totais de avarias.';
+   cbDetAvaForn.visible := true;
+   cbCaixas.visible := false;
+end;
+
+function TfmRelGeral.getParametrosRelatorioAvarias: TstringList;
+var
+  params:TstringList;
+begin
+   params := TStringList.Create();
+   params.Add( dateToStr(di.date));
+   params.Add( dateToStr(df.date));
+   params.Add( fmMain.getNomeLojaLogada() );
+   params.Add( fmMain.getNomeUsuario() );
+   result := params;
+end;
+
+procedure TfmRelGeral.calCulaTotalAvariasPorFornecedor();
+var
+   params:TStringList;
+begin
+   f.gravaLog('calCulaTotalAvariasPorFornecedor()');
+
+// Lista as avarias
+   uEstoque.calculaTotaisAvariasPorFornecedor( tbValoresAvarias, cbLojas, di.date, df.date);
+
+// carrega os partametros
+   params := getParametrosRelatorioAvarias();
+
+// calcular o total de avarias por fornecedor
+   uEstoque.getTotaisAvariasPorFornecedor(tbValoresAvarias_Total,  tbValoresAvarias.TableName);
+
+// calcular o percentual de cada fornecedor
+   uCf.calCulaPercentualDoFornecedor(tbValoresAvarias_Total);
+
+   fmMain.imprimeRave(tbValoresAvarias, tbValoresAvarias_Total, nil, nil, nil, 'rpValoresAvariasPorForn', params )
+end;
+
+procedure TfmRelGeral.calCulaTotalAvariasPorLoja();
+var
+   params:TStringList;
+begin
+// calcular os totais por loja
+   uEstoque.calculaTotaisAvariasPorLoja(tbValoresAvarias, cbLojas, di.date, df.date);
+
+   params :=  getParametrosRelatorioAvarias();
+
+// pegar o total de venda
+   params.Add( uEstoque.getTotaisVendaAvaria(cbLojas, di.Date, df.Date, tbValoresAvarias.TableName) );
+
+//  pegar os totais por tipo para colocar no resumo
+   uEstoque.getTotaIsPorTipoDeAvaria( tbValoresAvarias_Total,  tbValoresAvarias.TableName);
+
+   if( tbValoresAvarias.RecordCount > 0) then
+      fmMain.imprimeRave( tbValoresAvarias, tbValoresAvarias_Total, nil, nil, nil, 'rpValoresAvarias', params )
+   else
+      msg.msgWarning('Sem valores para consulta.');
+end;
+
+procedure TfmRelGeral.calCulaValoresAvarias;
+begin
+  if (cbDetAvaForn.Checked = false ) then
+     calCulaTotalAvariasPorLoja()
+  else
+    calCulaTotalAvariasPorFornecedor();
+end;
+
+procedure TfmRelGeral.gerarVendaAvarias();
+var
+  cmd:String;
+  params: TStringlist;
+begin
+   cmd := ' Select l.is_uo,l.ds_uo, c.cd_ref,c.ds_ref, z.pedido, z.qt,' +
+          ' z.und, (z.qt* z.und ) as tVenda,' +
+          ' z.valorSugerido as pcVarejo , (z.qt* z.valorSugerido ) as tVarejo,' +
+          ' z.cmu, (z.qt* z.cmu)as tCMU,' +
+          '((z.qt* z.und ) - (z.qt* z.cmu)) as DifCMU, ' +
+          '((z.qt * z.valorSugerido ) - (z.qt * z.und) ) as DifVenda,  '+
+          ' case when (z.qt* z.cmu) -(z.qt* z.und ) > 0 then (z.qt* z.cmu) - (z.qt* z.und ) else 0 end as prejuizo ' +
+          ' from zcf_avariasDescontos z (nolock) '+
+          ' inner join crefe c (nolock) on z.is_ref = c.is_ref '+
+          ' inner join zcf_tbuo l (nolock)  on z.is_uo = l.is_uo  where ' +
+          ' z.data between ' + fdt.DateTimeToSqlDateTime(di.Date,' 00:00:00') +' and ' + fdt.DateTimeToSqlDateTime(df.Date,' 23:59:00');
+
+   if (cbLojas.ItemIndex > 0) then
+
+      cmd := cmd + ' and z.is_uo = ' + f.getNumUO(cbLojas);
+   cmd := cmd + ' order by z.is_uo, z.data';
+
+   dm.getQuery(qr , cmd);
+
+   Params := TStringList.Create();
+   params.Add( dateToStr(di.Date ));
+   params.Add( dateToStr(df.Date ));
+   params.Add( cbLojas.Items[cbLojas.ItemIndex] );
+   params.Add( fmMain.getNomeUsuario() );
+
+   fmMain.imprimeRave(qr, nil, nil, nil, nil, 'rpVendaAvarias' , params );
+end;
+
+procedure TfmRelGeral.diChange(Sender: TObject);
+begin
+   validaDatas(true);
+end;
+
+procedure TfmRelGeral.FormShow(Sender: TObject);
+var
+   aux:String;
+begin
+  pnParam.Height := 90;
+  pnSelCat.Visible := false;
+
+   uLj.getListaLojas(cbLojas, false, false, fmMain.getCdPesLogado(), '' );
+   cbLojas.ItemIndex := 0;
+
+   if (di<> nil) then
+   begin
+      df.date := dm.getDateBd();
+      aux := dateToStr(df.Date);
+      delete(aux, 01, 02);
+      insert('01', aux, 1);
+      di.date := strToDate(aux);
+   end;
+end;
+
+procedure TfmRelGeral.getDescCaixas();
+begin
+   cbCaixas.Items := uCaixa.getDescCaixas( f.getNumUO(cbLojas), IS_GRUPO_PERMITIDO_CARTAO, false);
+   if (cbCaixas.Items.Count > 0) then
+      cbCaixas.ItemIndex := 0;
+end;
+
+procedure TfmRelGeral.ajustaTelaParaRelCartoes;
+begin
+   uLj.getListaLojas(cbLojas, fmMain.isAcessoTotal(PERFIL), false, fmMain.getCdPesLogado(), '' );
+
+   label1.Visible := false;
+   cbDetAvaForn.Visible := true;
+   cbDetAvaForn.Checked := true;   
+
+   IS_GRUPO_PERMITIDO_CARTAO :=  not(fmMain.isGrupoRestrito(PERFIL));
+
+   if (IS_GRUPO_PERMITIDO_CARTAO = false) then
+   begin
+      di.MinDate :=  dm.getDateBd()-2;
+      df.visible := false;
+   end;
+   fmRelGeral.Caption :=  fmMain.getCaptionNivelAcesso(fmRelGeral.Caption, not(IS_GRUPO_PERMITIDO_CARTAO) );
+
+   di.Date := dm.getDateBd();
+   df.Date := di.Date;
+   getDescCaixas();
+   cbDetAvaForn.Caption := 'Listar o detalhamento dos cartões.';
+end;
+
+procedure TfmRelGeral.ajustaTelaParaCargaConciliacao;
+begin
+   ajustaTelaParaRelCartoes();
+   cbLojas.Visible := false;
+   cbCaixas.Visible := false;
+   GroupBox1.Width := di.Left + di.Width + 50;
+   btOk.Left := GroupBox1.Left + GroupBox1.Width + 20;
+   di.Date :=  dm.getDateBd();
+   df.Visible := false;
+   fmRelGeral.Caption :=  dm.getMsg('tef.Exptitle');
+   fmRelGeral.WindowState := wsNormal;
+   fmRelGeral.Height := 130;
+
+end;
+
+procedure TfmRelGeral.cbLojasClick(Sender: TObject);
+begin
+   if (perfil = fmMain.PagamentosEmCarto1.Tag ) then
+      getDescCaixas();
+end;
+
+procedure TfmRelGeral.cargaDadosConciliacao;
+begin
+   msg.msgWarning( dm.getMsg('tef.aviso1') );
+   uCartoes.cargaDadosConciliacao(tbPreviaDeCaixa, di, df);
+end;
+
+procedure TfmRelGeral.listaVendasEmCartao;
+var
+   lstTotais, param:Tstringlist;
+   i:integer;
+   dsEstornos:TdataSet;
+begin
+   f.gravaLog('----------------------------  Gerando previa de caixa ---------------------------------------');
+   fmMain.msgStatus('Gerando previa de caixa');
+
+   uCaixa.listaRecebimentosCaixa( tbPreviaDeCaixa, f.getCodUO(cbLojas), f.getCodCaixa(cbCaixas), di, df, false, false, true, false );
+
+	tbPreviaDeCaixa.Close();
+	tbPreviaDeCaixa.open();
+
+   if (tbPreviaDeCaixa.IsEmpty = false) then
+   begin
+// pegar os operadores do caixa
+      fmMain.msgStatus('Listando operadores');
+      uCaixa.getOperadoresPorCaixa(tbOperadores, f.getCodUO(cbLojas), f.getCodCaixa(cbCaixas), di, df);
+
+// listar os recebimentos do caixa
+      fmMain.msgStatus('Agrupando recebimentos do caixa');
+      uCaixa.getRecebDeCaixa(tbPreviaDeCaixa.tableName, tbTotRec);
+      f.gravaLog('itens no total de modalidades:'+ intToStr(tbTotRec.RecordCount));
+
+//listar as sangrias do caixa
+      fmMain.msgStatus('Listando sangrias de caixa');
+      uCaixa.getSangriasDoCaixa(tbPreviaDeCaixa.TableName, tbSangrias);
+      tbSangrias.Open();
+
+// listar o odetalhe das vendas de cartao
+      fmMain.msgStatus('Listando pagamentos em cartão');
+
+      uCaixa.getRecebimentosEmCartao(tbPreviaDeCaixa, tbVendasCartao, cbDetAvaForn.Checked);
+      tbVendasCartao.Open();
+
+      lstTotais := uCaixa.getTotalCartaoPorModo(tbVendasCartao);
+
+// listar as vendas estornadas
+      dsEstornos:= uFiscal.getVendasEstornadas( f.getCodUO(cblojas), f.getCodCaixa(cbCaixas), di.Date, df.Date);
+
+	   param := TStringlist.Create();
+      param.add( uLj.getNomeUO(cbLojas) );
+      param.add( f.getNomeDoCx(cbCaixas) );
+      param.add( dateToStr(di.date) + ' a ' +  dateToStr(df.date) );
+      param.add( fmMain.getNomeUsuario() );
+
+      for i:=0 to lstTotais.Count-1 do
+         param.Add(lstTotais[i]);
+
+      fmMain.msgStatus('');
+
+{
+      f.gravaLog(tbPreviaDeCaixa, 'tbendasCartao');
+      f.gravaLog(tbVendasCartao, 'tbendasCartao');
+      f.gravaLog(tbOperadores, 'toOperadores');
+      f.gravaLog(tbSangrias, 'tbSanfgrisas');
+      f.gravaLog(tbSangrias, 'tbSanfgrisas');
+}
+
+      fmMain.imprimeRave( tbOperadores, tbTotRec, tbSangrias, tbVendasCartao, dsEstornos, 'rpPreviaCx', param);
+
+      lstTotais.Free();
+      param.Free();
+      dsEstornos.Free();
+   end
+   else
+		msg.msgErro(dm.getMsg('MSG_SEM_DADOS'));
+end;
+
+procedure TfmRelGeral.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+   if (fmRelGeral <> nil) then
+   begin
+      f.salvaCampos(fmRelGeral);
+      action := CaFree;
+      fmRelGeral := nil;
+   end;
+end;
+
+procedure TfmRelGeral.produtosTransferidosGeraLista;
+var
+   tpOperacao:String;
+   params:TStringList;
+begin
+   case cbCaixas.ItemIndex of
+      0: tpOperacao := '2';
+      1: tpOperacao := 'Vendas';
+      2: tpOperacao := '5'; // transferencia
+   end;
+
+   uEstoque.listarItensPorTipoOperacao(tbOperadores, tpOperacao, getCodUO(cbLojas),
+      lbNivel.Caption, lbVlCat.Caption, di.Date, df.Date
+   );
+
+   if ( tbOperadores.IsEmpty = false) then
+   begin
+      params := TStringList.Create();
+      params.Add(getNomeUO(cbLojas));
+      params.Add(DateToStr(di.Date) +' até ' + DateToStr(di.Date));
+      params.Add(cbCaixas.Items[cbCaixas.itemIndex]);
+
+      fmMain.imprimeRave(tbOperadores, nil, nil, nil, nil, 'rpProdTransferidos', params);
+   end
+   else
+      msg.msgErro( dm.getMsg('MSG_SEM_DADOS'));
+end;
+
+procedure TfmRelGeral.btOkClick(Sender: TObject);
+begin
+  if (fdt.isIntervDataValido(di, df, true, QT_DIAS_INTERV_DATA ) = true) then
+  begin
+    case PERFIL of
+       1:gerarVendaAvarias();
+
+       2:calCulaValoresAvarias();
+
+       406:listaVendasEmCartao(); // previa geral do caixa
+
+       407:cargaDadosConciliacao();
+
+       112:produtosTransferidosGeraLista(); //LISTA ITENS POR TIPO DE MOVIMENTO
+    end;
+  end
+end;
+
+procedure TfmRelGeral.produtosTransferidosAjustaTela;
+begin
+    fmRelGeral.Caption := 'Produtos movimentados por tipo de movimento.';
+    di.Date := dm.getDateBd();
+    df.Date := di.Date;
+
+    with cbCaixas do
+    begin
+       LabelDefs.Caption := 'Operação:';
+       items.Clear();
+       items.Add('Transferência saída');
+       items.Add('Venda');
+       items.Add('Acertos');
+       ItemIndex := 0;
+    end;
+    pnParam.Height := 90;
+    pnSelCat.Visible := false;
+end;
+
+procedure TfmRelGeral.setPerfil(P: integer);
+begin
+   f.gravaLog('Perfil:' + IntToStr(p));
+   PERFIL := P;
+   fmRelGeral.Tag := fmMain.Cargadedadosparaconciliao1.Tag;
+   case perfil of
+      2:ajustaTelaParaAvarias();
+      406:ajustaTelaParaRelCartoes();  //previa de caixa
+      407:ajustaTelaParaCargaConciliacao();
+      112:produtosTransferidosAjustaTela(); // relacao por tipo de movimento
+   end;
+
+end;
+
+procedure TfmRelGeral.FlatButton7Click(Sender: TObject);
+begin
+   fmMain.ajustaValoresCategorias(lbClasse1, lbClasse2, lbClasse3, lbNivel, lbVlCat);
+end;
+
+procedure TfmRelGeral.dfChange(Sender: TObject);
+begin
+   fdt.isIntervDataValido(di, df, true, QT_DIAS_INTERV_DATA);
+end;
+
+procedure TfmRelGeral.cbCaixasSelect(Sender: TObject);
+begin
+   if (PERFIL = 112) then
+   begin
+      if (cbCaixas.ItemIndex = 1) then
+      begin
+         { usado se o tipo de movimento for de venda }
+         cbLojas.Items.Clear();
+         uLj.getListaLojas(cbLojas, true, false, fmMain.getCdPesLogado(), '' );
+      end
+      else
+      begin
+         uLj.getListaLojas(cbLojas, false, false, fmMain.getCdPesLogado(), '' );
+      end;
+      ajVisibilidadePnCat(cbCaixas.ItemIndex);
+      cbLojas.ItemIndex := 0;
+   end;
+end;
+
+procedure TfmRelGeral.FormCreate(Sender: TObject);
+begin
+	QT_DIAS_INTERV_DATA := 31;
+end;
+
+end.

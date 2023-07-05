@@ -1,0 +1,532 @@
+object fmRelGeral: TfmRelGeral
+  Left = 303
+  Top = 186
+  Width = 784
+  Height = 424
+  Caption = 'Pagamentos em cart'#227'o - pr'#233'via de caixa'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  FormStyle = fsMDIChild
+  OldCreateOrder = False
+  Position = poDefault
+  Visible = True
+  WindowState = wsMaximized
+  OnClose = FormClose
+  OnCreate = FormCreate
+  OnShow = FormShow
+  PixelsPerInch = 96
+  TextHeight = 13
+  object pnParam: TPanel
+    Left = 0
+    Top = 0
+    Width = 768
+    Height = 145
+    Align = alTop
+    TabOrder = 0
+    object cbLojas: TadLabelComboBox
+      Left = 3
+      Top = 25
+      Width = 167
+      Height = 21
+      AutoDropDown = True
+      BevelInner = bvNone
+      BevelKind = bkSoft
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 0
+      OnClick = cbLojasClick
+      LabelDefs.Width = 20
+      LabelDefs.Height = 13
+      LabelDefs.Caption = 'Loja'
+      Colors.WhenEnterFocus.BackColor = clInfoBk
+    end
+    object btOk: TFlatButton
+      Left = 656
+      Top = 22
+      Width = 66
+      Height = 26
+      Caption = '&OK'
+      Glyph.Data = {
+        DE010000424DDE01000000000000760000002800000024000000120000000100
+        0400000000006801000000000000000000001000000000000000000000000000
+        80000080000000808000800000008000800080800000C0C0C000808080000000
+        FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00333333333333
+        3333333333333333333333330000333333333333333333333333F33333333333
+        00003333344333333333333333388F3333333333000033334224333333333333
+        338338F3333333330000333422224333333333333833338F3333333300003342
+        222224333333333383333338F3333333000034222A22224333333338F338F333
+        8F33333300003222A3A2224333333338F3838F338F33333300003A2A333A2224
+        33333338F83338F338F33333000033A33333A222433333338333338F338F3333
+        0000333333333A222433333333333338F338F33300003333333333A222433333
+        333333338F338F33000033333333333A222433333333333338F338F300003333
+        33333333A222433333333333338F338F00003333333333333A22433333333333
+        3338F38F000033333333333333A223333333333333338F830000333333333333
+        333A333333333333333338330000333333333333333333333333333333333333
+        0000}
+      Layout = blGlyphLeft
+      NumGlyphs = 2
+      TabOrder = 1
+      ModalResult = 1
+      OnClick = btOkClick
+    end
+    object GroupBox1: TGroupBox
+      Left = 192
+      Top = 9
+      Width = 249
+      Height = 56
+      Caption = ' Per'#237'odo '
+      TabOrder = 2
+      object Label1: TLabel
+        Left = 115
+        Top = 23
+        Width = 15
+        Height = 13
+        Caption = 'at'#233
+      end
+      object di: TfsDateTimePicker
+        Left = 8
+        Top = 20
+        Width = 102
+        Height = 21
+        Date = 40842.672702233790000000
+        Time = 40842.672702233790000000
+        TabOrder = 0
+        OnChange = diChange
+      end
+      object df: TfsDateTimePicker
+        Left = 134
+        Top = 20
+        Width = 102
+        Height = 21
+        Date = 40842.672702233790000000
+        Time = 40842.672702233790000000
+        TabOrder = 1
+        OnChange = dfChange
+      end
+    end
+    object cbDetAvaForn: TfsCheckBox
+      Left = 192
+      Top = 68
+      Width = 249
+      Height = 17
+      Caption = 'Detalhar por fornecedor'
+      TabOrder = 3
+      Visible = False
+      FlatFont.Charset = DEFAULT_CHARSET
+      FlatFont.Color = clWindowText
+      FlatFont.Height = -11
+      FlatFont.Name = 'MS Sans Serif'
+      FlatFont.Style = []
+    end
+    object cbCaixas: TadLabelComboBox
+      Left = 451
+      Top = 25
+      Width = 162
+      Height = 21
+      AutoDropDown = True
+      BevelInner = bvNone
+      BevelKind = bkSoft
+      Style = csDropDownList
+      ItemHeight = 13
+      TabOrder = 4
+      OnSelect = cbCaixasSelect
+      LabelDefs.Width = 26
+      LabelDefs.Height = 13
+      LabelDefs.Caption = 'Caixa'
+      Colors.WhenEnterFocus.BackColor = clInfoBk
+    end
+    object pnSelCat: TPanel
+      Left = 451
+      Top = 60
+      Width = 187
+      Height = 76
+      BevelOuter = bvNone
+      TabOrder = 5
+      Visible = False
+      object lbNivel: TLabel
+        Left = 146
+        Top = 4
+        Width = 6
+        Height = 13
+        Caption = '0'
+        Visible = False
+      end
+      object lbVlCat: TLabel
+        Left = 157
+        Top = 4
+        Width = 24
+        Height = 13
+        Caption = '0000'
+        Visible = False
+      end
+      object lbClasse1: TLabel
+        Left = 46
+        Top = 30
+        Width = 81
+        Height = 13
+        Caption = '--------------------'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clMaroon
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object lbClasse2: TLabel
+        Left = 60
+        Top = 44
+        Width = 81
+        Height = 13
+        Caption = '--------------------'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clMaroon
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object lbClasse3: TLabel
+        Left = 71
+        Top = 58
+        Width = 81
+        Height = 13
+        Caption = '--------------------'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clMaroon
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+      end
+      object Bevel1: TBevel
+        Left = 1
+        Top = 18
+        Width = 184
+        Height = 55
+      end
+      object Label5: TLabel
+        Left = 3
+        Top = 28
+        Width = 26
+        Height = 13
+        Caption = 'Dep: '
+      end
+      object Label6: TLabel
+        Left = 6
+        Top = 43
+        Width = 37
+        Height = 13
+        Caption = 'Se'#231#227'o: '
+      end
+      object Label2: TLabel
+        Left = 8
+        Top = 57
+        Width = 48
+        Height = 13
+        Caption = 'Categoria:'
+      end
+      object FlatButton7: TFlatButton
+        Left = 17
+        Top = 2
+        Width = 91
+        Height = 21
+        Caption = 'Categorias    '
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clBlack
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        Glyph.Data = {
+          36050000424D3605000000000000360400002800000010000000100000000100
+          0800000000000001000000000000000000000001000000000000000000000000
+          80000080000000808000800000008000800080800000C0C0C000C0DCC000F0CA
+          A6000020400000206000002080000020A0000020C0000020E000004000000040
+          20000040400000406000004080000040A0000040C0000040E000006000000060
+          20000060400000606000006080000060A0000060C0000060E000008000000080
+          20000080400000806000008080000080A0000080C0000080E00000A0000000A0
+          200000A0400000A0600000A0800000A0A00000A0C00000A0E00000C0000000C0
+          200000C0400000C0600000C0800000C0A00000C0C00000C0E00000E0000000E0
+          200000E0400000E0600000E0800000E0A00000E0C00000E0E000400000004000
+          20004000400040006000400080004000A0004000C0004000E000402000004020
+          20004020400040206000402080004020A0004020C0004020E000404000004040
+          20004040400040406000404080004040A0004040C0004040E000406000004060
+          20004060400040606000406080004060A0004060C0004060E000408000004080
+          20004080400040806000408080004080A0004080C0004080E00040A0000040A0
+          200040A0400040A0600040A0800040A0A00040A0C00040A0E00040C0000040C0
+          200040C0400040C0600040C0800040C0A00040C0C00040C0E00040E0000040E0
+          200040E0400040E0600040E0800040E0A00040E0C00040E0E000800000008000
+          20008000400080006000800080008000A0008000C0008000E000802000008020
+          20008020400080206000802080008020A0008020C0008020E000804000008040
+          20008040400080406000804080008040A0008040C0008040E000806000008060
+          20008060400080606000806080008060A0008060C0008060E000808000008080
+          20008080400080806000808080008080A0008080C0008080E00080A0000080A0
+          200080A0400080A0600080A0800080A0A00080A0C00080A0E00080C0000080C0
+          200080C0400080C0600080C0800080C0A00080C0C00080C0E00080E0000080E0
+          200080E0400080E0600080E0800080E0A00080E0C00080E0E000C0000000C000
+          2000C0004000C0006000C0008000C000A000C000C000C000E000C0200000C020
+          2000C0204000C0206000C0208000C020A000C020C000C020E000C0400000C040
+          2000C0404000C0406000C0408000C040A000C040C000C040E000C0600000C060
+          2000C0604000C0606000C0608000C060A000C060C000C060E000C0800000C080
+          2000C0804000C0806000C0808000C080A000C080C000C080E000C0A00000C0A0
+          2000C0A04000C0A06000C0A08000C0A0A000C0A0C000C0A0E000C0C00000C0C0
+          2000C0C04000C0C06000C0C08000C0C0A000F0FBFF00A4A0A000808080000000
+          FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF00FFFFFFFFFFFF
+          FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA4A4A4A4A4A4FFFFFFFFFFFFFFFF
+          FFFFA400A4A4A4A4FFFFFFFFFFFFFFFFFFFFA408080008A4FFFFFFFFFFFFFFFF
+          FFFFA40808A4A4A4FFFFFFFFFFFF0000A4A4000008A4A4A4FFFFFFFFFFFF00FF
+          0808FF000800FFA4FFFFFFFFA400A4A4A4A4A400A4A4A4A4FFFFFFFFA40808FF
+          00A4A400A4A4A4A4FFFFFFFFA408000000A4A400FFFFFFFFFFFFFF0000080000
+          00A4A400FFFFFFFFFFFFFFFF0808000808A40000FFFFFFFFFFFFFFFFA408FFFF
+          00A4A4A4FFFFFFFFFFFFFFFF0000A4A400A400FFFFFFFFFFFFFFFFFFFFFFFFFF
+          FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF}
+        Layout = blGlyphLeft
+        ParentFont = False
+        TabOrder = 0
+        OnClick = FlatButton7Click
+      end
+    end
+  end
+  object tbValoresAvarias: TADOTable
+    Connection = dm.con
+    Left = 16
+    Top = 143
+    object tbValoresAvariasis_uo: TStringField
+      FieldName = 'is_uo'
+      Size = 8
+    end
+    object tbValoresAvariasds_uo: TStringField
+      FieldName = 'ds_uo'
+      Size = 30
+    end
+    object tbValoresAvariasTipoAvaria: TStringField
+      FieldName = 'TipoAvaria'
+    end
+    object tbValoresAvariasqtItens: TIntegerField
+      FieldName = 'qtItens'
+    end
+    object tbValoresAvariasvalorTotalCusto: TBCDField
+      FieldName = 'valorTotalCusto'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object tbValoresAvariasvalorTotalPcVarejo: TBCDField
+      FieldName = 'valorTotalPcVarejo'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object tbValoresAvariasTotalVendido: TBCDField
+      FieldName = 'TotalVendido'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object tbValoresAvariasFornecedor: TStringField
+      FieldName = 'Fornecedor'
+      Size = 30
+    end
+  end
+  object tbValoresAvarias_Total: TADOTable
+    Connection = dm.con
+    Left = 17
+    Top = 184
+    object tbValoresAvarias_TotaltipoAvaria: TStringField
+      FieldName = 'tipoAvaria'
+      Size = 30
+    end
+    object tbValoresAvarias_TotalqtItens: TIntegerField
+      FieldName = 'qtItens'
+    end
+    object tbValoresAvarias_TotalvalorTotalCusto: TBCDField
+      FieldName = 'valorTotalCusto'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object tbValoresAvarias_TotalvalorTotalVenda: TBCDField
+      FieldName = 'valorTotalVenda'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object tbValoresAvarias_Totalfornecedor: TStringField
+      FieldName = 'fornecedor'
+      Size = 30
+    end
+  end
+  object tbPreviaDeCaixa: TADOTable
+    Connection = dm.con
+    Left = 304
+    Top = 160
+  end
+  object tbOperadores: TADOTable
+    Connection = dm.con
+    Left = 344
+    Top = 160
+  end
+  object tbTotRec: TADOTable
+    Connection = dm.con
+    Left = 384
+    Top = 160
+    object tbTotReccd_mve: TStringField
+      FieldName = 'cd_mve'
+      Size = 50
+    end
+    object tbTotRecvalor: TBCDField
+      FieldName = 'valor'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+  end
+  object tbSangrias: TADOTable
+    Connection = dm.con
+    Left = 424
+    Top = 160
+    object tbSangriascd_mve: TStringField
+      FieldName = 'cd_mve'
+      Size = 50
+    end
+    object tbSangriasvalor: TBCDField
+      FieldName = 'valor'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+  end
+  object tbVendasCartao: TADOTable
+    Connection = dm.con
+    CursorType = ctStatic
+    Left = 472
+    Top = 160
+    object tbVendasCartaocodLoja: TIntegerField
+      FieldName = 'codLoja'
+    end
+    object tbVendasCartaocd_mve: TIntegerField
+      FieldName = 'cd_mve'
+    end
+    object tbVendasCartaods_mve: TStringField
+      FieldName = 'ds_mve'
+    end
+    object tbVendasCartaoseqTransacaoCaixa: TIntegerField
+      FieldName = 'seqTransacaoCaixa'
+    end
+    object tbVendasCartaovalor: TBCDField
+      FieldName = 'valor'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object tbVendasCartaonumparcelas: TIntegerField
+      FieldName = 'numparcelas'
+    end
+    object tbVendasCartaotp_mve: TStringField
+      FieldName = 'tp_mve'
+      Size = 1
+    end
+    object tbVendasCartaotefMagnetico: TStringField
+      FieldName = 'tefMagnetico'
+      Size = 1
+    end
+  end
+  object qr: TADOQuery
+    CursorType = ctStatic
+    Parameters = <>
+    SQL.Strings = (
+      '/*'
+      
+        'Select l.is_uo,l.ds_uo, c.cd_ref,c.ds_ref, z.pedido, z.qt, z.und' +
+        ', (z.qt* z.und ) '
+      
+        'as tVenda, z.valorSugerido as pcVarejo , (z.qt* z.valorSugerido ' +
+        ') as tVarejo, '
+      
+        'z.cmu, (z.qt* z.cmu)as tCMU, ((z.qt* z.und ) - (z.qt* z.cmu)) as' +
+        ' DifCMU, '
+      ' ((z.valorSugerido * z.und ) - (z.qt* z.cmu)) as DifVenda,'
+      ' case when '
+      ' ( (z.qt* z.cmu)) -  ((z.qt* z.und ))  > 0  then'
+      ' (z.qt* z.cmu) -  (z.qt* z.und ) else 0 end as prejuizo  '
+      
+        '  from zcf_avariasDescontos z (nolock)  inner join crefe c (nolo' +
+        'ck) on'
+      
+        ' z.is_ref = c.is_ref  inner join zcf_tbuo l (nolock)  on z.is_uo' +
+        ' = l.is_uo '
+      
+        ' where  z.data between '#39'2010-08-01 00:00:00'#39' and '#39'2010-08-11 23:' +
+        '59:00'#39' '
+      'order by z.is_uo, z.data'
+      '*/')
+    Left = 16
+    Top = 80
+    object qris_uo: TIntegerField
+      FieldName = 'is_uo'
+    end
+    object qrds_uo: TStringField
+      FieldName = 'ds_uo'
+      Size = 50
+    end
+    object qrcd_ref: TStringField
+      FieldName = 'cd_ref'
+    end
+    object qrds_ref: TStringField
+      FieldName = 'ds_ref'
+      Size = 50
+    end
+    object qrpedido: TIntegerField
+      FieldName = 'pedido'
+    end
+    object qrqt: TIntegerField
+      FieldName = 'qt'
+    end
+    object qrund: TBCDField
+      FieldName = 'und'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrtVenda: TBCDField
+      FieldName = 'tVenda'
+      ReadOnly = True
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrpcVarejo: TBCDField
+      FieldName = 'pcVarejo'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrtVarejo: TBCDField
+      FieldName = 'tVarejo'
+      ReadOnly = True
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrcmu: TBCDField
+      FieldName = 'cmu'
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrtCMU: TBCDField
+      FieldName = 'tCMU'
+      ReadOnly = True
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrDifCMU: TBCDField
+      FieldName = 'DifCMU'
+      ReadOnly = True
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrDifVenda: TBCDField
+      FieldName = 'DifVenda'
+      ReadOnly = True
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+    object qrprejuizo: TBCDField
+      FieldName = 'prejuizo'
+      ReadOnly = True
+      DisplayFormat = '#,###,###0.00'
+      Precision = 19
+    end
+  end
+end

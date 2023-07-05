@@ -1,0 +1,117 @@
+unit uParametros;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, Grids, DBGrids, SoftDBGrid, DB, ADODB, StdCtrls, adLabelComboBox,
+  Buttons, fCtrls;
+
+type
+  TfmParametros = class(TForm)
+    gdParam: TSoftDBGrid;
+    cbParametros: TadLabelComboBox;
+    tbParam: TADOTable;
+    DataSource1: TDataSource;
+    btIncluiXML: TfsBitBtn;
+    cbLoja: TadLabelComboBox;
+    procedure FormActivate(Sender: TObject);
+    procedure carregaListaParametros();
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure cbParametrosChange(Sender: TObject);
+    procedure carregaComboParametros();
+    procedure btIncluiXMLClick(Sender: TObject);
+    procedure gdParamDblClick(Sender: TObject);
+    procedure cbLojaChange(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  fmParametros: TfmParametros;
+
+implementation
+
+uses uMain, f, cf, uDm, msg, uLj;
+
+{$R *.dfm}
+
+procedure TfmParametros.carregaListaParametros;
+begin
+   tbParam.TableName := 'zcf_paramGerais';
+   if (tbParam.Active = true) then
+     tbParam.Close();
+
+   if (cbParametros.ItemIndex > 0) then
+   begin
+      tbParam.Filtered := true;
+      tbParam.Filter := 'nm_param = ' + quotedStr(cbParametros.Items[cbParametros.ItemIndex]);
+
+      if ( f.getCodUO(cbLoja) <> '999') then
+      tbParam.Filter := tbParam.Filter + ' and uo= ' + f.getCodUO(cbLoja);
+   end
+   else
+      tbParam.Filtered := false;
+
+   tbParam.Open();
+
+   gdParam.Columns[ tbParam.fieldByName('nm_param').index ].Width := 150;
+   gdParam.Columns[ tbParam.fieldByName('uo').index ].Width := 60;
+   gdParam.Columns[ tbParam.fieldByName('valor').index ].Width := 300;
+   gdParam.Columns[ tbParam.fieldByName('obs').index ].Width := 300;
+end;
+
+procedure TfmParametros.FormClose(Sender: TObject;  var Action: TCloseAction);
+begin
+   action := caFree;
+   fmParametros := nil;
+   carregaListaParametros();
+end;
+
+procedure TfmParametros.cbParametrosChange(Sender: TObject);
+begin
+   carregaListaParametros();
+end;
+
+procedure TfmParametros.carregaComboParametros;
+begin
+   cbParametros.Items :=  dm.getListagem(dm.getCMD('adm', 'getComboParams'), 0);
+end;
+
+procedure TfmParametros.btIncluiXMLClick(Sender: TObject);
+var
+  str:String;
+begin
+   str := InputBox('', 'informe o nome do parâmetro', '');
+   if (str <> '') then
+   begin
+      str:= dm.getCMD1('adm', 'insParamBd', str);
+      dm.execSQL(str);
+   end;
+	carregaComboParametros();
+   carregaListaParametros();
+end;
+
+procedure TfmParametros.gdParamDblClick(Sender: TObject);
+begin
+   if (msg.msgQuestion('Remove esse parametro ?') = mrYes) then
+      tbParam.Delete();
+end;
+
+procedure TfmParametros.cbLojaChange(Sender: TObject);
+begin
+   carregaListaParametros();
+end;
+
+procedure TfmParametros.FormActivate(Sender: TObject);
+begin
+   carregaComboParametros();
+   uLj.getListaLojas( cbLoja, true, false, '', fmMain.getUoLogada() );
+end;
+
+
+end.
+
+

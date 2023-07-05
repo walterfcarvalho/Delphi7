@@ -1,0 +1,176 @@
+object fmSpedCont: TfmSpedCont
+  Left = 459
+  Top = 159
+  Width = 820
+  Height = 476
+  Caption = 'fmSpedCont'
+  Color = clBtnFace
+  Font.Charset = DEFAULT_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -11
+  Font.Name = 'MS Sans Serif'
+  Font.Style = []
+  FormStyle = fsMDIChild
+  OldCreateOrder = False
+  Position = poDefault
+  Visible = True
+  WindowState = wsMaximized
+  OnClose = FormClose
+  OnCreate = FormCreate
+  PixelsPerInch = 96
+  TextHeight = 13
+  object GroupBox1: TGroupBox
+    Left = 13
+    Top = 4
+    Width = 174
+    Height = 142
+    Caption = 'Carregar Arquivos PIS/COFINS'
+    TabOrder = 0
+    object Label1: TLabel
+      Left = 7
+      Top = 49
+      Width = 81
+      Height = 13
+      Caption = 'Somente os itens'
+    end
+    object Button1: TButton
+      Left = 4
+      Top = 20
+      Width = 137
+      Height = 25
+      Caption = 'Carregar Arquivos  '
+      TabOrder = 0
+      OnClick = Button1Click
+    end
+    object Memo1: TMemo
+      Left = 5
+      Top = 62
+      Width = 135
+      Height = 42
+      Ctl3D = False
+      ParentCtl3D = False
+      TabOrder = 1
+    end
+    object cbValida: TCheckBox
+      Left = 5
+      Top = 111
+      Width = 140
+      Height = 20
+      Caption = 'Apenas verificar os XML'
+      Checked = True
+      State = cbChecked
+      TabOrder = 2
+    end
+  end
+  object Memo2: TMemo
+    Left = 4
+    Top = 160
+    Width = 770
+    Height = 126
+    Ctl3D = False
+    Font.Charset = ANSI_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Courier New'
+    Font.Style = []
+    ParentCtl3D = False
+    ParentFont = False
+    TabOrder = 1
+  end
+  object GroupBox2: TGroupBox
+    Left = 205
+    Top = 4
+    Width = 248
+    Height = 84
+    Caption = ' Gerar o arquivo SPED '
+    TabOrder = 2
+    object Label2: TLabel
+      Left = 175
+      Top = 20
+      Width = 20
+      Height = 13
+      Caption = 'M'#234's'
+    end
+    object Button2: TButton
+      Left = 10
+      Top = 20
+      Width = 153
+      Height = 25
+      Caption = 'Gerar'
+      TabOrder = 0
+      OnClick = Button2Click
+    end
+    object edMesAno: TMaskEdit
+      Left = 174
+      Top = 36
+      Width = 65
+      Height = 26
+      Ctl3D = False
+      EditMask = '!99/0000;1;_'
+      Font.Charset = DEFAULT_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -16
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      MaxLength = 7
+      ParentCtl3D = False
+      ParentFont = False
+      TabOrder = 1
+      Text = '01/2009'
+    end
+    object Button3: TButton
+      Left = 10
+      Top = 52
+      Width = 153
+      Height = 25
+      Caption = 'Ver lojas geradas'
+      TabOrder = 2
+      OnClick = Button3Click
+    end
+  end
+  object Memo3: TMemo
+    Left = 4
+    Top = 294
+    Width = 770
+    Height = 127
+    Ctl3D = False
+    Font.Charset = ANSI_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Courier New'
+    Font.Style = []
+    ParentCtl3D = False
+    ParentFont = False
+    TabOrder = 3
+  end
+  object GroupBox3: TGroupBox
+    Left = 527
+    Top = 6
+    Width = 248
+    Height = 84
+    Caption = ' Gerar o arquivo SPED '
+    TabOrder = 4
+    object Button4: TButton
+      Left = 10
+      Top = 20
+      Width = 120
+      Height = 25
+      Caption = 'Adiciona valor ao C190'
+      TabOrder = 0
+      OnClick = Button4Click
+    end
+    object edvlPerc: TadLabelEdit
+      Left = 153
+      Top = 24
+      Width = 74
+      Height = 19
+      LabelDefs.Width = 51
+      LabelDefs.Height = 13
+      LabelDefs.Caption = 'Percentual'
+      Ctl3D = False
+      ParentCtl3D = False
+      TabOrder = 1
+      Text = '0'
+    end
+  end
+end

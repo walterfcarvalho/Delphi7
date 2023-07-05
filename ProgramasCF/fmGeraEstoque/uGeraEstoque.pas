@@ -1,0 +1,837 @@
+unit uGeraEstoque;
+
+interface
+
+uses
+  Windows, Clipbrd, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, Buttons, Grids, DBGrids, DB, ADODB,comObj, {ExtCtrls, }StdCtrls,
+  TFlatButtonUnit, adLabelEdit, SoftDBGrid, TFlatEditUnit, adLabelComboBox,
+  ComCtrls, adLabelNumericEdit, adLabelSpinEdit, Menus,  fCtrls,
+  CheckLst, adLabelCheckListBox, adLabelListBox, ToolWin, ExtCtrls;
+
+type
+  TfmGeraEstoque = class(TForm)
+    grid: TSoftDBGrid;
+    pbRodape: TPanel;
+    spedit: TadLabelSpinEdit;
+    Label1: TLabel;
+    btPrint: TFlatButton;
+    rgTpBusca: TadLabelComboBox;
+    btExport: TFlatButton;
+    Label3: TLabel;
+    cbCalculaEntSaiTotal: TfsCheckBox;
+    pnTitulo: TPanel;
+    btGeraEstoque: TFlatButton;
+    cbLoja: TadLabelComboBox;
+    cbPrecos: TadLabelComboBox;
+    cbEstoque: TadLabelComboBox;
+    Bt_Saidas: TFlatButton;
+    Bt_Entradas: TFlatButton;
+    CheckBox2: TCheckBox;
+    FlatButton5: TFlatButton;
+    edit1: TadLabelEdit;
+    FlatButton4: TFlatButton;
+    FlatButton6: TFlatButton;
+    cbProdAtivos: TfsCheckBox;
+    Panel1: TPanel;
+    lbNivel: TLabel;
+    lbVlCat: TLabel;
+    lbClasse1: TLabel;
+    lbClasse2: TLabel;
+    lbClasse3: TLabel;
+    Bevel1: TBevel;
+    Label5: TLabel;
+    Label6: TLabel;
+    Label2: TLabel;
+    FlatButton7: TFlatButton;
+    cbSoEntrada: TfsCheckBox;
+    cbCalEmp: TfsCheckBox;
+    pnForn: TPanel;
+    btAddForn: TFlatButton;
+    btRemoveForn: TFlatButton;
+    lbForn: TadLabelListBox;
+    DataSource1: TDataSource;
+    tbGE: TADOTable;
+    PopupMenu1: TPopupMenu;
+    VerdetalhesdaCMU1: TMenuItem;
+    Pedidosdecompra1: TMenuItem;
+    Vermovimentodoestoque1: TMenuItem;
+    pnImage: TPanel;
+    Image: TImage;
+    cbCarregaImg: TfsCheckBox;
+    abrir1: TMenuItem;
+    salva1: TMenuItem;
+    comando1: TMenuItem;
+    interno1: TMenuItem;
+    FlatButton1: TFlatButton;
+
+    function GetIniDtVen():Tdate;
+    function getParametrosGeraEstoque():TStringlist;
+    function lojaAProcessar():String;
+    procedure abrir1Click(Sender: TObject);
+    procedure Bt_EntradasClick(Sender: TObject);
+    procedure Bt_SaidasClick(Sender: TObject);
+    procedure btAddFornClick(Sender: TObject);
+    procedure btRemoveFornClick(Sender: TObject);
+    procedure calcularVenda();
+    procedure cbLojaClick(Sender: TObject);
+    procedure CriarTabela(Sender:Tobject);
+    procedure btGeraEstoqueClick(Sender: TObject);
+    procedure btPrintClick(Sender: TObject);
+    procedure btExportClick(Sender: TObject);
+    procedure FlatButton4Click(Sender: TObject);
+    procedure FlatButton5Click(Sender: TObject);
+    procedure FlatButton6Click(Sender: TObject);
+    procedure FlatButton7Click(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormCreate(Sender: TObject);
+    procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure geraEstoque();
+    procedure getDadosEntrada();
+    procedure getDadosEstoqueCD();
+    procedure gridCellClick(Column: TColumn);
+    procedure gridDblClick(Sender: TObject);
+    procedure gridTitleClick(Column: TColumn);
+    procedure imprimeGeraEstoqueComImagens();
+    procedure limpaImagem();
+    procedure PedidosDeCompra1Click(Sender: TObject);
+    procedure preencheDadosDosProdutos();
+    procedure ProgressoDaExecucao(Sender:Tobject;nItem:integer);
+    procedure removeItensSemEntrada();
+    procedure rgTpBuscaClick(Sender: TObject);
+    procedure salva1Click(Sender: TObject);
+    procedure speditChange(Sender: TObject);
+    procedure VerdetalhesdaCMU1Click(Sender: TObject);
+    procedure verificaCargaDeVendas();
+    procedure Vermovimentodoestoque1Click(Sender: TObject);
+    procedure ajAcessoPnCategoria();
+    procedure comando1Click(Sender: TObject);
+    procedure FlatButton1Click(Sender: TObject);
+
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+var
+  fmGeraEstoque: TfmGeraEstoque;
+  ORDENADO_POR:string;
+  IS_ORDER_DESC:byte;
+implementation
+
+uses uMain, cf, uCF, uExportaTable, fdt, uDm, uEstoque, f, msg, uLj, uPreco,
+  uTipoImpGeraEstoque, uProd, uDadosGeraEst;
+
+{$R *.dfm}
+
+function TfmGeraEstoque.lojaAProcessar():String;
+begin
+   if (cbCalEmp.Checked = true) then
+      result := '999'
+   else
+      result := f.getCodUO(cbLoja);
+end;
+
+procedure TfmGeraEstoque.CriarTabela(Sender: Tobject);
+var
+  i:integer;
+begin
+   dm.getTable(tbge, dm.getCMD('Estoque', 'geraEst.getTb') );
+
+   grid.Columns[0].Width := 60;
+   grid.Columns[1].Width := 290;
+   grid.Columns[2].Width :=  82;
+   grid.Columns[3].Width :=  88;
+   grid.Columns[4].Width :=  65;
+   grid.Columns[5].Width :=  65;
+   grid.Columns[6].Width :=  65;
+   grid.Columns[7].Width :=  80;
+   grid.Columns[8].Visible := false;
+
+   f.ajGridCol(grid, tbGE, 'imagem', 0, '');
+   f.ajGridCol(grid, tbGE, 'cd_pes', 0, '');
+   f.ajGridCol(grid, tbGE, 'is_ref', 50, 'is_ref');
+   f.ajGridCol(grid, tbGE, 'imagem', 0, '');
+   f.ajGridCol(grid, tbGE, 'seq', 0, '');
+
+
+   for i:=0 to grid.Columns.Count -1 do
+      grid.Columns[i].Title.Font.Style :=[fsbold];
+end;
+
+
+procedure TfmGeraEstoque.FormCreate(Sender: TObject);
+begin
+   cbPrecos.items := uPreco.getListaPrecos(true, true, true, fmMain.getGrupoLogado() ); // getListaPrecos (sender);
+
+   uLj.getListaLojas( cbLoja, false, false, '', fmMain.getUoLogada() );
+
+   f.carregaCampos(self);
+   edit1.Text := '';
+   cbCalculaEntSaiTotal.Checked := false;
+   lbForn.Items.Clear();
+
+   cbLojaClick(nil);
+
+
+   rgTpBuscaClick(Sender);
+
+   pnforn.Top := 55;
+   pnforn.Left := edit1.Left;
+
+   if fmGeraEstoque <> nil then
+   begin
+	   verificaCargaDeVendas();
+	   criarTabela(Sender);
+   end
+end;
+
+procedure TfmGeraEstoque.limpaImagem;
+begin
+   if (Image <> nil) then
+   begin
+	   Image.picture.Assign(nil);
+	   Image.Refresh();
+   end;   
+end;
+
+procedure TfmGeraEstoque.removeItensSemEntrada();
+var
+  cmd:String;
+begin
+   fmMain.msgStatus('Removendo itens sem entrada...');
+   tbGE.Close();
+   cmd := 'delete from ' + tbge.TableName + ' where [Data Ultima Ent] = '''' or  [Data Ultima Ent] is null ';
+   dm.execSQL(cmd);
+   tbGE.Open();
+end;
+
+procedure TfmGeraEstoque.ProgressoDaExecucao(Sender:Tobject;nItem:integer);
+begin
+   fmMain.msgStatus('Item ' + intToStr(nItem) + ' de  ' +
+                    intToStr(tbGE.RecordCount) +
+                    '  '+ tbGE.fieldByName('Codigo').asString + ' ' +
+                    tbGE.fieldByName('descricao').asString
+                   );
+end;
+
+procedure TfmGeraEstoque.calcularVenda();
+var
+   dataI:Tdate;
+begin
+   f.gravaLog('TfmGeraEstoque.calcularVenda()');
+
+   tbGE.first();
+   while (tbGE.Eof = false) do
+   begin
+      fmMain.msgStatusProgresso(tbGe.RecNo, tbGe.RecordCount, 'Calculando vendas...');
+
+      if (cbCalculaEntSaiTotal.Checked = true) then
+         dataI := strToDate('01/01/2005')
+      else
+      begin
+         if ( tbGE.FieldByName('Data Ultima Ent').AsString = '') then
+            datai :=  now - (30* spedit.Value)
+         else
+            datai := tbGE.FieldByName('Data Ultima Ent').AsDateTime;
+      end;
+
+      tbGE.edit();
+      tbGE.fieldByName('Total Venda').asString :=
+      uProd.getVendaProduto(  tbGe.fieldByName('is_ref').AsString,
+                           lojaAProcessar(),
+                           datai,
+                           now,
+                           ''
+                          );
+
+      tbGE.post();
+      tbGE.next();
+   end;
+end;
+
+function TfmGeraEstoque.getIniDtVen():TDate;
+begin
+   result := (now - (30 * spedit.Value));
+end;
+
+function TfmGeraEstoque.getParametrosGeraEstoque(): TStringlist;
+var
+   params:TStringlist;
+   i:integer;
+   cmd:String;
+begin
+   params := TStringList.create();
+
+{0}   params.Add(  uLj.getNomeUO(cbLoja));
+{1}   params.add(  uLj.getNomeUO(cbPrecos));
+{2}   params.add(  uLj.getNomeUO(cbEstoque));
+{3}   params.add(  trim(uLj.getNomeUO(cbPrecos)));
+{4}   params.add(  trim(uLj.getNomeUO(rgTpBusca)));
+   params.add(  grid.Columns[tbGE.FieldByName('Quant Ultima Ent').Index].Title.Caption) ; {5}
+
+
+   case(rgTpBusca.ItemIndex) of
+      0,1: params.add(edit1.Text);
+      2:begin
+           for i:=0 to lbForn.Items.Count-1 do
+              cmd := cmd + intToStr(i+1) + ':'+copy( lbForn.Items[i], 01, 30);
+           params.add(cmd);
+        end;
+   end;
+
+   if checkBox2.Checked = true then
+      params.add('Estoque CD');
+
+   params.add( grid.Columns[ tbGE.FieldByName('Quant Ultima Ent').Index ].Title.Caption );
+
+   if ( cbCalculaEntSaiTotal.Checked = true) then
+      params.add( 'Entrada e saída total.')
+   else
+      params.add( 'Última entrada.');
+
+   result := params;
+end;
+
+procedure TfmGeraEstoque.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+begin
+   case key of
+      vk_return : btGeraEstoqueClick(Sender);
+      VK_F6:Bt_EntradasClick(Sender);
+      VK_F7:Bt_SaidasClick(Sender);
+   end
+
+
+end;
+
+procedure TfmGeraEstoque.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+   tbge.Close();
+   f.salvaCampos(fmGeraEstoque);
+   Action := caFree;
+   fmGeraEstoque := nil;
+end;
+
+procedure TfmGeraEstoque.Bt_EntradasClick(Sender: TObject);
+begin
+	uDAdosGeraEst.listaEntradas(tbGE);
+end;
+
+procedure TfmGeraEstoque.Bt_SaidasClick(Sender: TObject);
+var
+   dtInicio:Tdate;
+begin
+   screen.Cursor := crHourGlass;
+
+   uDadosGeraEst.listaFormVendas(
+   	tbGE,
+		uDadosGeraEst.lojaAProcessar((cbLoja.ItemIndex = 0), cbLoja),
+      now - (30* spedit.Value)
+	);
+   screen.Cursor := crdefault;
+end;
+
+procedure TfmGeraEstoque.speditChange(Sender: TObject);
+begin
+  if (spedit.Value < 1) then
+     spedit.Value := 1
+end;
+
+procedure TfmGeraEstoque.FlatButton5Click(Sender: TObject);
+begin
+   if not(tbGE.IsEmpty) then
+      fmMain.obterResumoEstoque( tbGE.fieldByName('is_ref').AsString, '1');
+end;
+
+procedure TfmGeraEstoque.FlatButton4Click(Sender: TObject);
+var
+   dti:tdate;
+begin
+	uDadosGeraEst.listaFormRequisicao(tbGe, lojaAProcessar(), getIniDtVen() );
+{
+  if not(tbGE.IsEmpty) then
+  begin
+     if (tbGE.FieldByName('Data Ultima Ent').asString <> '') then
+	     dti := tbGE.FieldByName('Data Ultima Ent').AsDateTime
+     else
+			dti := getIniDtVen();
+
+     fmMain.abreTelaConsultaRequisicao( tbGE.FieldByName('codigo').asString, lojaAProcessar(), dti);
+  end;
+}
+end;
+
+procedure TfmGeraEstoque.rgTpBuscaClick(Sender: TObject);
+begin
+    ajAcessoPnCategoria();
+    Case rgTpBusca.ItemIndex of
+       0: edit1.LabelDefs.Caption := 'Faixa de código';
+       1: edit1.LabelDefs.Caption := 'Número do pedido';
+       2: edit1.LabelDefs.Caption := 'Código do fornecedor';
+    end;
+
+    if (rgTpBusca.ItemIndex  = 2) then
+       pnForn.Visible := true
+    else
+       pnForn.Visible := false;
+end;
+
+procedure TfmGeraEstoque.gridDblClick(Sender: TObject);
+begin
+   if (tbGE.IsEmpty = false) then
+      uProd.carregaImagem(tbGE.fieldByName('is_ref').asString, Image, false );
+end;
+
+procedure TfmGeraEstoque.gridCellClick(Column: TColumn);
+begin
+  fmMain.msgStatus('');
+   screen.Cursor := crHourGlass;
+   if (tbGE.IsEmpty = false) then
+      if (cbCarregaImg.Checked = true) then
+         uProd.CarregaImagem(tbGE.fieldByName('is_ref').asString, Image, false );
+   screen.Cursor := crDefault;
+end;
+
+procedure TfmGeraEstoque.gridTitleClick(Column: TColumn);
+begin
+   dm.organizarTabela(tbGe, grid, Column);
+   ORDENADO_POR :=  column.FieldName;
+end;
+
+procedure TfmGeraEstoque.FlatButton6Click(Sender: TObject);
+begin
+   if (tbGE.IsEmpty = false) then
+      fmMain.obterResumoEntSai(tbGE.FieldByName('is_ref').AsString, lojaAProcessar() );
+end;
+
+procedure TfmGeraEstoque.FlatButton7Click(Sender: TObject);
+begin
+   fmMain.ajustaValoresCategorias(lbClasse1, lbClasse2, lbClasse3, lbNivel, lbVlCat);
+end;
+
+procedure TfmGeraEstoque.PedidosDeCompra1Click(Sender: TObject);
+begin
+   if (tbGE.IsEmpty = false) then
+     fmMain.getPedidosFornecedor( tbGE.fieldByname('is_ref').asString, fmMain.getUOCD());
+end;
+
+procedure TfmGeraEstoque.FormActivate(Sender: TObject);
+begin
+   edit1.SetFocus;
+   rgTpBusca.ItemIndex := 0;
+   rgTpBuscaClick(nil);
+   FlatButton1.Visible := (fmMain.getGrupoLogado() = '13');
+   grid.Align := alClient;
+ //  edit1.Text := '32560001';
+end;
+
+procedure TfmGeraEstoque.getDadosEstoqueCD;
+var
+  data:Tdate;
+begin
+   data:= now();
+
+   tbGE.First();
+   while (tbGE.Eof = false) do
+   begin
+      fmMain.msgStatusProgresso(tbGE.RecNo, tbGe.RecordCount, 'Obtendo estoques CD');
+
+       tbge.Edit();
+       tbge.FieldByName('EstoqueCD').AsString:=
+          cf.getEstoqueProduto( fmMain.getUOCD(),
+                                tbGE.fieldByName('is_ref').AsString,
+                                'D',
+                                data
+                              );
+      tbGE.post();
+      tbGE.Next();
+   end;
+   f.gravaLog(' - getDadosEstoqueCD() - ok ');
+end;
+
+procedure TfmGeraEstoque.getDadosEntrada();
+var
+   ds:TdataSet;
+   uo:String;
+begin
+   uo := lojaAProcessar();
+
+   if (cbCalculaEntSaiTotal.Checked = false) then
+   begin
+      tbGE.First();
+      while (tbGE.Eof = false) do
+      begin
+         fmMain.msgStatusProgresso(tbGe.RecNo,  tbGE.RecordCount, 'Obtendo dados sobre as entradas...');
+
+         ds := uProd.getDadosUltEntItem(tbGE.fieldByName('is_ref').AsString, uo);
+
+         if (ds.IsEmpty = false) then
+         begin
+            tbGE.Edit();
+            tbGE.FieldByName('Data Ultima Ent').AsDateTime := ds.fieldByName('dt_mov').AsDateTime;
+            tbGE.FieldByName('Quant Ultima Ent').AsString := ds.fieldByName('qt_mov').asString;
+            tbGE.post();
+         end;
+         ds.free;
+         tbge.Next;
+      end;
+   end
+   else
+   begin
+      tbGE.First();
+      while (tbGE.Eof = false) do
+      begin
+         ds:= uEstoque.getEntradasPorItem( tbGE.fieldByName('is_ref').AsString, uo, strToDate('01/01/2000'), now);
+
+         if (ds.IsEmpty = false) then
+         begin
+            tbge.Edit();
+            tbge.FieldByName('Data Ultima Ent').AsDateTime :=  strToDate( uProd.getDataEntrada(ds,'U'));
+            tbge.FieldByName('Quant Ultima Ent').AsString := uEstoque.getTotalDeEntradasProduto(ds, false);
+            tbGE.post();
+         end;
+         ds.free;
+         tbGE.Next();
+      end;
+   end;
+   f.gravaLog(' - getDadosEntrada()');
+end;
+
+procedure TfmGeraEstoque.VerdetalhesdaCMU1Click(Sender: TObject);
+begin
+   if (tbGe.IsEmpty = false) then
+      fmMain.getDadosCRUC(tbGE.fieldByName('is_ref').asString);
+end;
+
+procedure TfmGeraEstoque.preencheDadosDosProdutos;
+var
+   dsItens:TdataSet;
+   disponiveis:boolean;
+   cmd:String;
+begin
+	edit1.Text := trim(edit1.Text);
+
+   f.gravaLog('preencheDadosDosProdutos()');
+
+   disponiveis := (cbEstoque.itemIndex = 0);
+
+   dsItens := TDataSet.Create(nil);
+   case (rgTpBusca.ItemIndex) of
+   	0:dsItens:= uProd.getIsrefPorFaixaCodigo(edit1.Text, lbNivel.Caption, lbVlCat.Caption, cbProdAtivos.Checked, false);
+      1:dsItens:= uProd.listaProdutoPorPedido(uProd.getStrCat(lbNivel.Caption, lbVlCat.Caption) , edit1.Text);
+      2:dsItens:= uProd.listaProdPorFornecedor(uProd.getStrCat(lbNivel.Caption, lbVlCat.Caption), f.getLista(lbForn.Items, false), uProd.getStrAtivos(cbProdAtivos.Checked));
+      3:begin
+      		cmd := msg.msgInput('Comando Sql para listar os is_ref pretendidos');
+            if (cmd = '' )then
+            	cmd := 'select is_ref from crefe where is_ref = -1';
+           	dsItens := dm.getDataSetQ(cmd);
+        end;
+
+      4:dsitens := dm.getDataSetQ('select is_ref from crefe where is_ref in ('+ edit1.text +')');
+   end;
+
+// insere na tabela os itens
+	uDadosGeraEst.getItensGeraEstoque(dsItens, tbGE, f.getCodUO(cbLoja), f.getCodPc(cbPrecos), disponiveis);
+
+   dsItens.free;
+   gravaLog('terminei preencheDadosDosProdutos');
+end;
+
+procedure TfmGeraEstoque.GeraEstoque();
+begin
+   grid.Visible := false;
+
+   screen.cursor := crHourGlass;
+
+   while (tbGE.IsEmpty = false) do
+      tbGE.delete;
+
+// procedure para Obter os items
+   preencheDadosDosProdutos();
+
+//   tbGE.SaveToFile('c:\tbge_dados.dat');
+
+// preenche os dados do Estoque dos produtos
+   if ( fmMain.getUOCD() <> f.getCodUO(cbLoja) )  and (fmGeraEstoque <> nil)  then
+      getDadosEstoqueCD();
+
+//   tbGE.SaveToFile('c:\tbge_estoque.dat');
+{}
+//   tbge.LoadFromFile('c:\tbge.dat');
+
+// pega os Dados das entradas dos produtos
+   getDadosEntrada();
+//   tbGE.SaveToFile('c:\tbge_dadosEntrada.dat');
+
+// remove os itens sem entrada se for solicitado
+   if (cbSoEntrada.Checked = true) then
+      removeItensSemEntrada();
+
+// calculaVenda dos produtos
+    calcularVenda();
+
+//   tbGE.SaveToFile('c:\tbge_vendas.dat');
+
+   fmMain.msgStatus('Itens Calculados: ' + intToStr(tbge.RecordCount) );
+
+   f.gravaLog(tbGE, 'tb ge');
+
+   grid.Visible := true;
+end;
+
+procedure TfmGeraEstoque.btGeraEstoqueClick(Sender: TObject);
+var
+  erro:String;
+begin
+   limpaImagem();
+   erro := verificaParametros(rgTpBusca.ItemIndex, cbPrecos.ItemIndex, cbLoja.ItemIndex, edit1.Text, lbForn.Items);
+
+   if (erro =  '') then
+   begin
+      screen.Cursor := crhourglass;
+
+      geraEstoque();
+
+      screen.Cursor := crDefault;
+      grid.Columns[ tbGE.FieldByName('pv').Index ].Title.Caption := copy(cbPrecos.Items[cbPrecos.itemindex], 01, 20);
+
+      if (cbCalculaEntSaiTotal.Checked = true) then
+         grid.Columns[ tbGE.FieldByName('Quant Ultima Ent').Index ].Title.Caption :='Quant total Ent'
+      else
+         grid.Columns[ tbGE.FieldByName('Quant Ultima Ent').Index ].Title.Caption :='Quant Ultima Ent';
+
+      if (f.getCodUO(cbLoja) = fmMain.getUOCD()) then
+         grid.Columns[ tbGE.FieldByName('EstoqueCD').Index ].visible := false;
+   end
+   else
+      msg.msgErro('Erro:'+#13+ erro);
+end;
+
+procedure TfmGeraEstoque.btAddFornClick(Sender: TObject);
+begin
+   fmMain.addFornaLista(lbForn);
+end;
+
+procedure TfmGeraEstoque.btRemoveFornClick(Sender: TObject);
+begin
+	if ( lbForn.Items.Count > 0 ) then
+   	lbForn.Items.Delete(lbForn.ItemIndex);
+end;
+
+procedure TfmGeraEstoque.btExportClick(Sender: TObject);
+begin
+   fmMain.exportaDataSet(tbGE, fmMain.getTextGeradorEmail());
+end;
+
+procedure TfmGeraEstoque.Vermovimentodoestoque1Click(Sender: TObject);
+var
+   di,df:Tdate;
+   itens:TStringList;
+   tbItens, tbMov:TADOTable;
+   params:TStringList;
+   cmd:String;
+begin
+   if (tbGE.IsEmpty = false) then
+   begin
+      tbItens := TADOTable.Create(nil);
+      tbMov := TADOTable.Create(nil);
+
+      cmd := dm.getCMD('Estoque','rrana.criatbTemp');
+      dm.getTable(tbItens, cmd);
+
+      cmd := dm.getCMD('Estoque','rrana.criatbTempItens');
+      dm.getTable(tbMov, cmd);
+
+      if (tbGE.fieldByName('Data Ultima Ent').AsString <> '') then
+			di := strToDate(tbGE.fieldByName('Data Ultima Ent').AsString)
+		else
+			di := GetIniDtVen();
+
+		df:= now;
+
+      itens := TSTringlist.Create();
+      itens.Add(tbGE.fieldByName('is_ref').AsString);
+
+      uEstoque.calculaRRANA(tbItens, tbMov, itens, f.getCodUO(cbLoja), di, df);
+
+      Params:= TStringlist.create();
+      params.Add(dateToStr(di));
+      params.Add(dateToStr(df));
+      params.Add(uLj.getNomeUO(cbLoja));
+      params.Add(fmMain.getNomeUsuario()) ;
+
+      if (tbMov.IsEmpty = false) then
+         fmMain.imprimeRave(tbItens, tbMov, nil, nil, nil, 'rpRRANA', params)
+      else
+         msg.msgExclamation('Sem movimentação no período.');
+
+      tbItens.Free();
+      tbMov.Free();
+	end;
+end;
+
+procedure TfmGeraEstoque.imprimeGeraEstoqueComImagens;
+var
+   tbRel:tadoTable;
+   cmd:String;
+//   ds:TdataSet;
+begin
+   dm.getTableComNome(tbRel, dm.getCMD('Estoque', 'geraEst.getTb'), '');
+
+   tbRel.Close();
+
+   if (ORDENADO_POR = '') then
+    ORDENADO_POR := tbGE.Fields[1].FieldName;
+
+   cmd :=  dm.getCMD3('Estoque', 'geraEst.impImagens', tbRel.TableName, tbGE.TableName, ORDENADO_POR );
+
+   if (tbGE.Tag = 1) then
+      dm.setParam(cmd, ' desc')
+   else
+      dm.setParam(cmd, ' asc');
+
+   f.gravaLog(cmd);
+
+   dm.execSQL(cmd);
+
+
+   tbRel.Open();
+{}
+
+//	cmd := 'select * from zcf_geraEstoqueImagens where seq > 3000 ';
+
+//    ds := dm.getDataSetQ(cmd);
+
+   fmMain.imprimeRave({ds}tbRel, nil, nil, nil, nil, 'rpGeraEstoqueImagens', getParametrosGeraEstoque() );
+   tbRel.close();
+   tbRel.free();
+end;
+
+procedure TfmGeraEstoque.btPrintClick(Sender: TObject);
+begin
+//   if not(tbGE.IsEmpty) then
+   begin
+      case fmMain.getTpImpressao() of
+            0: fmMain.imprimeRave(tbGE, nil, nil, nil, nil,  'rpGeraEstoque', getParametrosGeraEstoque());
+            1: imprimeGeraEstoqueComImagens();
+         end;
+      fmTipoImpressaoGera := nil;
+   end;
+end;
+
+procedure TfmGeraEstoque.cbLojaClick(Sender: TObject);
+begin
+	if (ulj.isCd(f.getCodUO(cbLoja)) = false ) then
+//   if (cbLoja.ItemIndex > 0) then
+   begin
+      checkBox2.Checked := true;
+      cbCalEmp.Checked := false;
+   end
+   else
+   begin
+      checkBox2.Checked := false;
+      cbCalEmp.Checked := true;
+   end
+end;
+
+procedure TfmGeraEstoque.verificaCargaDeVendas();
+var
+  ds:TdataSet;
+  cmd:String;
+  datai, dataf:Tdate;
+  dias:TStringList;
+begin
+   cmd :=
+   'select data from zcf_dsdei_log where tipo = ''V'' and data >= '+
+   fdt.dateToSqlDate( dm.getDataAntBd(90)) + ' order by data desc';
+
+   ds:= dm.getDataSetQ(cmd);
+
+   dataf :=  dm.getDateBd();
+   datai:= dataf - 90;
+
+   dias := TStringlist.create();
+
+
+   ds.First();
+   while (ds.Eof = false) do
+   begin
+      dias.add( intToStr(f.dateToInteiro(ds.fieldByName('data').AsDateTime)) );
+      ds.Next();
+   end;
+   ds.Free();
+
+   f.gravaLog(dias  );
+
+   cmd := '';
+   while (datai < dataf) do
+   begin
+      if ( dias.IndexOf( intToStr(f.dateToInteiro(datai))) < 0 )  then
+         cmd := cmd + ', '+ dateToStr(datai);
+
+       datai := datai + 1;
+   end;
+
+   if (cmd <> '' ) then
+   begin
+      Delete(cmd, 01, 01);
+
+      cmd :=
+      '                   Atenção' + #13 +
+      '   Existem dias em que não consta a carga de dados das vendas.' + #13+
+      '   Favor comunicar à T.I.' + #13+
+      '   Os dias são: ' + cmd;
+      msg.msgErro(cmd);
+   end;
+end;
+
+procedure TfmGeraEstoque.abrir1Click(Sender: TObject);
+begin
+   if fileExists(f.getDirLogs() + 'tbGe.dat') then
+      tbge.loadfromfile( f.getDirLogs() + 'tbGe.dat')
+   else
+      msg.msgErro('Não há nada salvo');
+
+{   tbGe.Close();
+   tbge.TableName := 'tbge6';
+   tbGe.Open();
+}
+end;
+
+procedure TfmGeraEstoque.salva1Click(Sender: TObject);
+begin
+   tbGe.SaveToFile( f.getDirLogs() + 'tbGe.dat');
+end;
+
+procedure TfmGeraEstoque.ajAcessoPnCategoria();
+begin
+   lbNivel.Caption := '0';
+   lbVlCat.Caption := '0000';
+   Panel1.Visible := (rgTpBusca.ItemIndex = 0);
+end;
+
+procedure TfmGeraEstoque.comando1Click(Sender: TObject);
+begin
+   tbGE.Close();
+   dm.execSQL( msg.msgInput('Comando ?', '' ));
+   tbGE.Open();
+end;
+
+
+procedure TfmGeraEstoque.FlatButton1Click(Sender: TObject);
+var
+   tb:String;
+begin
+   tb := msg.msgInput('Nome da tabela', 'tbGe');
+
+   delete(tb, 01,01);
+
+   dm.execSQL('select * into ' +tb+ ' from '+ tbGE.TableName);
+
+   showmessage('salvo em '+ tb);
+   clipboard.AsText := tb;
+end;
+
+end.
+

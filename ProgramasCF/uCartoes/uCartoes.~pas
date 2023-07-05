@@ -1,0 +1,48 @@
+unit uCartoes;
+
+interface
+   uses ADODB, ComCtrls, QForms, uCaixa;
+
+   procedure cargaDadosConciliacao(tb:TADOTable; dti, dtf: TDateTimePicker);
+
+
+
+implementation
+
+
+uses uCF, uMain, fdt, f, uDm, msg;
+
+procedure cargaDadosConciliacao(tb:TADOTable; dti, dtf: TDateTimePicker);
+var
+  cmd:String;
+begin
+   uCaixa.listaRecebimentosCaixa( tb, '', '', dti, dtf, true, false, false, false);
+
+   screen.cursor := -11;
+   if (tb.IsEmpty = false) then
+   begin
+      fmMain.msgStatus( dm.getMsg('tef.VerCarga') );
+
+      // remove o antigo
+      cmd := dm.getCMD1('tef', 'expVdConcRemAntigo', fdt.dateToSqlDate(dti.Date));
+      dm.execSQl(cmd);
+
+      fmMain.msgStatus( dm.getMsg('tef.expDados'));
+
+      // insere os dados da conciliacao
+      cmd := dm.getCMD1('tef', 'expVdConc', tb.tableName);
+
+      
+
+      // tenta executar o remover do dia
+      if (dm.execSQl(cmd) = false) then
+         msg.msgErro( dm.getMsg('tef.errExp'))
+      else
+         msg.msgExclamation(dm.getMsg('tef.ExpOk'));
+   end;
+   tb.close();
+   screen.cursor :=0;
+end;
+
+
+end.

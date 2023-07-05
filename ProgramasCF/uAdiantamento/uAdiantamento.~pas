@@ -1,0 +1,26 @@
+unit uAdiantamento;
+
+interface
+   function getBaixasAdiantamentos(nr_adi:String):TdataSet;
+
+implementation
+
+uses uAdiantamento;
+
+function getBaixasAdiantamentos(nr_adi:String):TdataSet;
+begin
+   result := dm.getDataSetQ( dm.getCMD1('financeiro', 'getBaixaAdi', nr_adi)) ;
+end;
+
+function getAdiantamentos(cd_pes:String):TdataSet;
+var
+   cmd:String;
+begin
+   result :=
+   dm.getDataSetQ( dm.getCMD1('financeiro', 'getAdi', cd_pes)) ;
+end;
+
+
+
+end.
+ 

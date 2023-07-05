@@ -1,0 +1,117 @@
+inherited fmAcertoEstoque: TfmAcertoEstoque
+  Caption = 'Acerto de quantidades'
+  OldCreateOrder = True
+  OnCreate = FormCreate
+  PixelsPerInch = 96
+  TextHeight = 13
+  inherited Label1: TLabel
+    Left = 458
+    Top = 361
+    Width = 142
+    Anchors = [akLeft, akTop, akBottom]
+    Caption = 'Importar produtos para acertar'
+  end
+  inherited Label3: TLabel
+    Left = 457
+    Top = 375
+    Width = 232
+    Anchors = [akLeft, akTop, akBottom]
+    Caption = 'Formato <COD>|<EAN> <espa'#231'o> <Quantidade>'
+  end
+  object rgTpAcerto: TRadioGroup [2]
+    Left = 41
+    Top = 338
+    Width = 164
+    Height = 70
+    Caption = 'Tipo de acerto do estoque'
+    ItemIndex = 0
+    Items.Strings = (
+      'Cr'#233'dito'
+      'D'#233'bito'
+      'Ajusta para quant')
+    TabOrder = 12
+  end
+  object Memo1: TMemo [3]
+    Left = 40
+    Top = 414
+    Width = 353
+    Height = 124
+    Color = clBtnFace
+    Ctl3D = False
+    ParentCtl3D = False
+    ReadOnly = True
+    TabOrder = 14
+  end
+  inherited edCodigo: TadLabelEdit
+    Top = 16
+  end
+  inherited Grid: TSoftDBGrid
+    Options = [dgEditing, dgTitles, dgIndicator, dgColumnResize, dgColLines, dgRowLines, dgTabs, dgConfirmDelete, dgCancelOnExit]
+    TabOrder = 3
+    OnDblClick = GridDblClick
+  end
+  inherited edPcNovo: TadLabelNumericEdit
+    LabelDefs.Width = 55
+    LabelDefs.Caption = 'Quantidade'
+    OnKeyDown = edPcNovoKeyDown
+  end
+  inherited btAjustaPreco: TFlatButton
+    Left = 640
+    Top = 16
+    Width = 105
+    Caption = 'Processar o acerto'
+    TabOrder = 7
+  end
+  inherited btConsultaProduto: TFlatButton
+    Left = 170
+    Top = 16
+    TabOrder = 1
+  end
+  inherited cbCustoFiscal: TFlatCheckBox
+    Width = 12
+    TabOrder = 9
+  end
+  inherited cbCustoMedioUnico: TFlatCheckBox
+    Width = 12
+    TabOrder = 4
+  end
+  inherited cbLoja: TadLabelComboBox
+    Top = 16
+    TabOrder = 5
+  end
+  inherited memoItens: TMemo
+    Left = 456
+    Top = 394
+    Width = 290
+    Font.Charset = ANSI_CHARSET
+    Font.Name = 'Courier'
+    ParentFont = False
+    TabOrder = 6
+  end
+  inherited Button1: TButton
+    Left = 27
+    Top = 338
+    Width = 9
+    TabOrder = 8
+  end
+  inherited GroupBox1: TGroupBox
+    Width = 11
+  end
+  inherited fsBitBtn1: TfsBitBtn
+    Top = 530
+    TabOrder = 13
+  end
+  object fsBitBtn2: TfsBitBtn [17]
+    Left = 457
+    Top = 530
+    Width = 153
+    Height = 25
+    Caption = 'Zerar Estoque'
+    TabOrder = 15
+    OnClick = fsBitBtn2Click
+  end
+  object tb: TADOTable
+    Left = 144
+    Top = 128
+  end
+end

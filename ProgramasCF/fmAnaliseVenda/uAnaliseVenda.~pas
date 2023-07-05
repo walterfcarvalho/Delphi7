@@ -1,0 +1,443 @@
+unit uAnaliseVenda;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Menus, DB, ADODB, StdCtrls, Buttons, fCtrls, adLabelComboBox, Grids,
+  DBGrids, SoftDBGrid, ComCtrls, Dialogs, f, funcSQL, TFlatButtonUnit, mxExport, ExtCtrls;
+
+type
+  TfmFaturamento = class(TForm)
+    DataSource1: TDataSource;
+    grid: TSoftDBGrid;
+    tb: TADOTable;
+    PopupMenu1: TPopupMenu;
+    Detalhar1: TMenuItem;
+    tbis_uo: TIntegerField;
+    tbLoja: TStringField;
+    tbPreviageralcaixa: TBCDField;
+    tbVendacredcliente: TBCDField;
+    tbVendaLiquida: TBCDField;
+    tbFatvendaClientes: TBCDField;
+    tbFatvendaentrelojas: TBCDField;
+    tbVendasemcartao: TBCDField;
+    tbFatVendamenosVendacartao: TBCDField;
+    tbFattransfcomotransf: TBCDField;
+    Panel1: TPanel;
+    Label1: TLabel;
+    cbLojas: TadLabelComboBox;
+    cbListaVdMaracanau: TfsCheckBox;
+    btExportar: TfsBitBtn;
+    btImprime: TfsBitBtn;
+    fsBitBtn3: TfsBitBtn;
+    GroupBox1: TGroupBox;
+    lbAte: TLabel;
+    datai: TfsDateTimePicker;
+    dataf: TfsDateTimePicker;
+    procedure FormCreate(Sender: TObject);
+    procedure criatbAvl();
+    procedure FlatButton1Click(Sender: TObject);
+    procedure CalcularVendasLoja();
+    procedure ListarLojas();
+    procedure ObterVendaLoja();
+    procedure obterFaturamentoVenda();
+    procedure FlatButton2Click(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure dataiChange(Sender: TObject);    procedure memoEnter(Sender: TObject);
+    procedure SomaColunas(Sender:Tobject);
+    procedure btExportarClick(Sender: TObject);
+    procedure Label1MouseMove(Sender: TObject; Shift: TShiftState; X,Y: Integer);
+    procedure Label1MouseLeave(Sender: TObject);
+    procedure Label1Click(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  fmFaturamento: TfmFaturamento;
+  colunas:  array[1..10]of string;
+  isAcessoRestrito:boolean;
+implementation
+
+uses uMain, uCF, uDm, uFiscal, uLj, fdt, msg, uCaixa;
+
+{$R *.dfm}
+
+procedure TfmFaturamento.FormCreate(Sender: TObject);
+begin
+   isAcessoRestrito := fmMain.isGrupoRestrito(fmMain.AnaliseVLC1.Tag);
+   uLj.getListaLojas( cbLojas, not(isAcessoRestrito), false, fmMain.getCdPesLogado(), fmMain.getUoLogada() );
+   fmMain.getParametrosForm(fmFaturamento);
+
+   if (isAcessoRestrito = true) then
+   begin
+      btImprime.Visible := false;
+      btExportar.Visible := false;
+      btExportar.Visible := false;
+      btImprime.Visible := false;
+      cbListaVdMaracanau.Visible := false;
+   end;
+   datai.Date := now;
+   dataf.date := now;
+end;
+
+procedure TfmFaturamento.criatbAvl();
+var
+  cmd,ntb:String;
+  i:integer;
+begin
+   if tb.TableName  = '' then
+   begin
+      colunas[1] := 'Fat venda Clientes';
+      colunas[2] := 'Fat venda entre lojas';
+      colunas[3] := 'Vendas em cartao';
+      colunas[4] := 'Fat Venda menos Venda cartao' ;
+      colunas[5] := 'Fat transf como transf' ;
+      colunas[6] := 'Previa geral caixa';
+      colunas[7] := 'Venda cred cliente';
+      colunas[8] := 'Venda Liquida';
+      colunas[9] := 'Devolucoes';
+      colunas[10] := 'Venda menos devolucao';
+
+      ntb := '#' + f.SohLetras( f.getNomeDaEstacao()) + f.SohNumeros( DateTimeToStr(now));
+
+      cmd := 'Create table ' + ntb +
+      '( is_uo int, Loja varchar(30), ['+colunas[6]+'] money , ' +
+      '[Venda cred cliente] money, ' +
+      '['+colunas[8]+'] money, ' +
+      '['+colunas[1]+'] money, ' +
+      '['+colunas[2]+'] money, ' +
+      '['+colunas[3]+'] money , '+
+      '['+colunas[4]+'] money , '+
+      '['+colunas[5]+'] money ) '  ;
+
+      dm.execSQL(cmd);
+      tb.tableName:= ntb;
+      tb.Open;
+      grid.Columns[0].Visible := false; {coluna is_uo}
+      grid.Columns[1].Width := 120;
+      grid.Columns[2].Width := 120;
+      grid.Columns[3].Width := 140;
+      grid.Columns[4].Width := 120;
+
+      for i:=0 to grid.Columns.Count -1 do
+         grid.Columns[i].Title.Font.Style :=[fsbold];
+   end
+   else
+      while tb.IsEmpty = false do
+         tb.Delete;
+end;
+
+
+procedure TfmFaturamento.obterFaturamentoVenda();
+var
+  tbFat:TADOTable;
+  cmd:String;
+  ds:TdataSet;
+begin
+   f.gravaLog('Obter os valores de faturamento');
+
+   fmMain.msgStatus('Obtendo faturamento da loja: ' + tb.fieldByname('Loja').asString );
+
+// cria a tabela para das notas faturadas
+   dm.getTable(tbFat,
+                    ' tipo varchar(05), dt_entsai smallDatetime, transacao int,  sr_docf varchar(03), '+
+                    ' nr_docf int, vl_tot money, vl_nota money, cd_cfo int, st_nf ' +
+                    ' varchar(03), vl_basICM money, aliq_ICM money, vl_ICM money'   );
+   tbFat.Close();
+
+
+// popular a tabela das notas fiscais
+   if ( dateToStr(datai.Date) <> dateToStr( dm.getDateBd() ) ) then
+   begin
+   f.gravaLog('executar o livro de saidas');
+
+      cmd := 'insert ' + tbFat.TableName +
+             ' exec zcf_stoListarRegistroSaida_cf ''('+ tb.fieldByname('is_uo').asString + ')'', ' + tb.fieldByname('is_uo').asString + ', '+ fdt.dateToSqlDate(datai.Date) + ', '
+             + fdt.dateToSqlDate(dataF.Date) + ',0 ';
+      dm.execSQL(cmd);
+   end
+   else
+   begin
+      f.gravaLog('metodo listaNotasVendaDia()');
+      uFiscal.listaNotasVendaDia(tbFat.TableName, tb.fieldByname('is_uo').asString, datai.Date, dataf.Date);
+   end;
+
+   f.gravaLog('obter o valor do faturado para clientes');
+
+   ds:= dm.getDataSetQ(dm.getCMD1('Fiscal', 'getVlFatVdCli', tbFat.TableName));
+
+   tb.edit;
+   tb.FieldByName(colunas[1]).asString :=   dm.somaColTable(ds, 'vl_Nota', false);
+   tb.post;
+
+// faturamento operacao transferencia  faturado como venda
+//   ds.Free();
+//   ds:= dm.getDataSetQ(dm.getCMD1('Fiscal', 'getVlFatTranAsVd', tbFat.TableName));
+
+   tb.edit;
+//   tb.FieldByName(colunas[2]).asString := dm.somaColTable(ds, 'vl_Nota', false);
+   tb.FieldByName(colunas[2]).asString := '0';
+   tb.post;
+
+
+// faturamento operacao transferencia  faturado trasnferencia
+
+   ds.Free();
+   ds:= dm.getDataSetQ(dm.getCMD1('Fiscal', 'getVlFatTranAsTrans', tbFat.TableName));
+
+   tb.edit;
+   tb.FieldByName(colunas[5]).asString := dm.somaColTable(ds, 'vl_Nota', false);
+   tb.FieldByName(colunas[4]).asFloat := (tb.FieldByName(colunas[1]).asFloat + tb.FieldByName(colunas[2]).asFloat) - tb.FieldByName(colunas[3]).asFloat;
+   tb.post;
+
+   ds.Free();
+   tbFat.Close();
+end;
+
+procedure TfmFaturamento.ObterVendaLoja();
+var
+   qr:TDataSet;
+   vVenda,vCartao,vCredito:real;
+   dsModalidadeCartao:TStringList;
+begin
+   fmMain.msgStatus('Obtendo vendas loja: ' + tb.fieldByName('Loja').AsString +'   -  ' );
+
+   dsModalidadeCartao:= uCF.getCodModalidadesCartao();
+
+   qr :=
+   uCaixa.getPreviaGeralCaixa(tb.fieldByName('is_uo').asString, '', datai.date, dataf.date, cbListaVdMaracanau.Checked, false, false, false);
+
+   vVenda := 0;
+   vCartao := 0;
+   vCredito := 0;
+   qr.First;
+   
+   while qr.Eof = false do
+   begin
+      if qr.FieldByName('fl_sinal').AsString = 'E' then
+      begin
+         vVenda:= vVenda + qr.FieldByName('valor').AsFloat;
+
+         if ( dsModalidadeCartao.IndexOf(trim(qr.FieldByName('cd_mve').asString)) > -1  ) then
+            vCartao := vcartao + qr.FieldByName('valor').asFloat;
+
+         if ( qr.FieldByName('cd_mve').asInteger = 68   ) or ( qr.FieldByName('cd_mve').asInteger = 68 + 999  ) then
+            vCredito := vCredito + qr.FieldByName('valor').asFloat;
+      end;
+      qr.Next;
+   end;
+   tb.Edit;
+   tb.FieldByName('Previa geral caixa').AsFloat := vVenda;
+   tb.FieldByName(colunas[7]).AsFloat := vCredito;
+   tb.FieldByName(colunas[3]).AsFloat := vCartao;
+   tb.FieldByName(colunas[8]).AsFloat := vVenda - vCredito;
+   tb.Post;
+end;
+
+procedure TfmFaturamento.ListarLojas();
+var
+   i:integer;
+   uo :String;
+begin
+   fmMain.msgStatus('Definindo as lojas que irão ser calculadas');
+
+   uo := f.getCodUO(cbLojas);
+
+   if ( uo <> '999' ) then
+   begin
+      f.gravaLog(' Adicionar lojas: ' + f.getCodUO(cbLojas) );
+      tb.Append;
+      tb.FieldByName('is_uo').AsString :=  f.getCodUO(cbLojas);
+      tb.FieldByName('Loja').AsString := fmMain.getDescUO(cbLojas);
+   end
+   else
+   begin
+      for i := 1 to cbLojas.Items.Count -1 do
+      begin
+         f.gravaLog(' Adicionar lojas: ' + f.getCodUO(cbLojas) );
+
+         cbLojas.ItemIndex := i;
+         tb.Append;
+         tb.FieldByName('is_uo').AsString := f.getCodUO(cbLojas);
+         tb.FieldByName('Loja').AsString := fmMain.getDescUO(cbLojas);
+         tb.post
+      end;
+      cbLojas.ItemIndex := 0;
+   end;
+   tb.First;
+end;
+
+
+procedure TfmFaturamento.CalcularVendasLoja();
+begin
+   grid.Visible := false;
+// cria a tabela que armazena os resultados
+   criatbAvl();
+
+   // Lmpar os campos da tabela
+   fmMain.msgStatus('Limpando Campos.');
+   While tb.IsEmpty = false do
+      tb.Delete;
+
+   //preencher a tabela com os dados das lojas
+   listarLojas();
+
+   if ( pos('Todas', cbLojas.Items[cbLojas.ItemIndex] ) <> 0 ) {todas as lojas } then
+   begin
+      f.gravaLog('Calcular de todas a lojas');
+      tb.First;
+      while (tb.Eof = false) do
+      begin
+         ObterVendaLoja();
+         obterFaturamentoVenda();
+         tb.Next;
+      end;
+      SomaColunas(nil);
+   end
+   else
+   begin
+     // Obter Valores previa GeralCaixa e venda cartoes
+      ObterVendaLoja();
+      obterFaturamentoVenda();
+   end;
+
+ //verificar se for do grupo de gerentes ele nao mostrara algumas colunas
+   if (pos(fmMain.getGrupoLogado(), dm.getParamBD('gruposRestritosTela','') ) <> 0 ) then
+   begin
+      btImprime.Visible := false;
+      tb.First;
+      while tb.Eof = false do
+      begin
+         tb.Edit;
+         tb.FieldByName(colunas[7]).asinteger := 0;
+         tb.FieldByName(colunas[5]).asinteger := 0;
+         tb.FieldByName(colunas[2]).asinteger := 0;
+         tb.Post;
+         tb.Next;
+      end;
+   end;
+   grid.Visible := true;
+   fmMain.msgStatus('');
+end;
+
+procedure TfmFaturamento.FlatButton2Click(Sender: TObject);
+var
+  params:TStringList;
+begin
+   if tb.IsEmpty = false then
+   begin
+      params := TStringList.Create();
+      params.Add(dateToStr(datai.Date) );
+      params.Add(dateToStr(dataf.Date) );
+      params.Add(fmMain.StatusBar1.Panels[01].Text );
+      if( cbListaVdMaracanau.Checked = true) then
+        params.Add('Sim')
+      else
+        params.Add('Não');
+
+      fmMain.imprimeRave(tb, nil, nil, nil, nil, 'rpAnaliseVendas', params);
+   end;
+end;
+
+
+procedure TfmFaturamento.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+   f.salvaCampos(fmFaturamento);
+   fmFaturamento := nil;
+   action := CaFree;
+end;
+
+procedure TfmFaturamento.dataiChange(Sender: TObject);
+begin
+   dataf.Date := datai.Date;
+end;
+
+procedure TfmFaturamento.memoEnter(Sender: TObject);
+begin
+  cbLojas.SetFocus;
+end;
+
+procedure TfmFaturamento.SomaColunas(Sender: Tobject);
+var
+  i:integer;
+  t2:TADOTable;
+begin
+   t2 := TADOTable.Create(nil);
+   t2.Connection := tb.connection;
+   t2.Recordset := tb.Recordset;
+   t2.open;
+   tb.Last;
+   tb.Append();
+   tb.Fields[0].asString := '000000';
+   tb.Fields[1].asString := 'Total                    ';
+
+   for i:= 2 to tb.FieldCount -1 do
+   begin
+      tb.Fields[i].asFloat := Funcsql.SomaColunaTable(t2,t2.Fields[i].FieldName);
+   end;
+   t2.Close;
+   t2.Free;
+   tb.Post;
+   tb.First;
+end;
+
+procedure TfmFaturamento.btExportarClick(Sender: TObject);
+begin
+   if tb.IsEmpty = false then
+     funcsql.exportaTable(tb);
+end;
+
+procedure TfmFaturamento.Label1MouseMove(Sender: TObject;
+  Shift: TShiftState; X, Y: Integer);
+begin
+    Label1.Font.Color := clRed;
+end;
+
+procedure TfmFaturamento.Label1MouseLeave(Sender: TObject);
+begin
+    Label1.Font.Color := clBlack;
+end;
+
+procedure TfmFaturamento.Label1Click(Sender: TObject);
+var
+   clientes:Tstringlist;
+   cmd:String;
+   i:integer;
+begin
+   cmd := 'Select cast(cd_pes as varchar(09)) + '' - '' + nm_pes from dspes where cd_pes in ' +
+          '('+ dm.getParamBD('AVL.CodcliExc','') +')' +
+          'order by nm_pes';
+
+  clientes :=   dm.getListagem(cmd);
+
+  cmd := '';
+
+   for i:= 0 to clientes.Count -1 do
+     cmd := cmd+ clientes[i] +#13;
+
+   msg.msgExclamation(cmd);
+   clientes.Free();
+end;
+
+procedure TfmFaturamento.FlatButton1Click(Sender: TObject);
+var
+   canExecute:Boolean;
+begin
+   canExecute := true;
+
+   if (fdt.isIntervDataValido( datai, dataf, true) = false) then
+      canExecute := false;
+
+   if (canExecute = true) then
+      if (isAcessoRestrito = true) then
+         canExecute := ucf.permiteExecutarRelatorio( fmMain.AnaliseVLC1.tag, fmMain.getUoLogada());
+
+   if( canExecute = true) then
+      calcularVendasLoja();
+end;
+
+end.

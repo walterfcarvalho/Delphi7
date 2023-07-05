@@ -1,0 +1,429 @@
+unit cf;
+
+interface
+
+uses  Controls, DB, SysUtils, ADODB, Classes, adLabelComboBox,Extctrls,
+       fdt, uMain, uDm, f, DBGrids, ucf, jpeg, adm, msg, uReq, QForms;
+
+   function inserirToper(usuario,sq_opf,codTransacao,fl_entrada:string):string;
+
+   function getDataUltCargaVendas():String;
+   function getEstoqueProduto(uo, is_ref, tipoSaldo:String; data:Tdate):String;
+   function getEstProdReq( uo, UO_CD, is_ref:String):integer;
+   function getImagemProduto(is_ref:String):TdataSet;
+   function isEstacaoPermitida(estacao:String):boolean;
+
+   procedure cargaVendas_entradas(tipoEntrada:String; insereDados:boolean; dia:Tdate);
+   procedure cargaVendas_Entradas_remove(tipoEntrada:String; insereDados:boolean; dia:Tdate);
+   procedure cargaVendas_saidas(tipoSaida:String; insereDados:boolean; dia:Tdate);
+   procedure cargaVendas_Saidas_remove(insereDados:boolean; dia:Tdate);
+   procedure carregaImagem(is_ref:String; image: TImage);
+   procedure getValoresFornADM(tbResParcelas:TADOTable);
+   procedure verificaItensDeumNota(isNota:String);
+
+   function gerarRequisicao(tb:TADOTable; uo, UO_CD, usuario:String; mostraNumero, ehReqDeVenda:Boolean; var ocoItens:TStringList; QT_DIAS_PEND:integer):String;
+
+
+{   function gerarRequisicaoFuncSQL(tb:TADOTable; uo_cd, uo,usuario:String;
+                         mostraNumero, ehReqDeVenda:Boolean; var ocoItens:TStringList;
+                         QT_DIAS_PEND:integer):String;
+ }
+
+
+implementation
+
+uses uEstoque, windows;
+
+
+
+procedure getValoresFornADM(tbResParcelas:TADOTable);
+var
+  di,df:Tdate;
+begin
+   fmMain.msgStatus('Obtendo os valores agendados no ADM...');
+   tbResParcelas.First();
+   while ( tbResParcelas.Eof = false) do
+   begin
+      di :=  strToDate(('01/'+tbResParcelas.fieldByName('mes_ano').asString));
+      df :=  strtoDate(fdt.getUltimoDiaMes(di));
+      tbResParcelas.Edit();
+      tbResParcelas.FieldByName('vlFornADM').AsString := adm.getSomaCompromissoPorCategoria(di, df, '0023');
+      tbResParcelas.Post();
+      tbResParcelas.Next();
+   end;
+end;
+
+
+
+procedure cargaVendas_Saidas_remove(insereDados:boolean; dia:Tdate);
+var
+   cmd:String;
+begin
+   if (insereDados = true) then
+   begin
+      // remove o registros da tabela de saidas
+      cmd := ' delete from zcf_DSdsi where dt_mov between ' +
+             fdt.dateTimeToSqlDateTime(dia, '00:00:00') +' and ' +
+             fdt.dateTimeToSqlDateTime(dia, '23:59:00') ;
+
+      dm.execSQL(cmd);
+
+     // remove o registro do log de saidas
+      cmd := 'delete from zcf_dsdei_log where data between ' +
+             fdt.dateTimeToSqlDateTime(dia, '00:00:00') +' and ' +
+             fdt.dateTimeToSqlDateTime(dia, '23:59:00') +' and ' +
+             'tipo = ''V'' ';
+
+      dm.execSQL(cmd);
+   end;
+end;
+
+procedure cargaVendas_saidas(tipoSaida:String; insereDados:boolean; dia:Tdate);
+var
+   cdTrans, cmd:String;
+   ds:TDataSet;
+begin
+   if (tipoSaida = 'Vendas') then
+      cdTrans := ' 09, 26, 43'
+   else
+      cdTrans := ' 23, 24, 25, 44 , 46 ';
+
+   cmd :=
+   'select dlest.is_estoque, '+
+   ' DLEST.is_ref, '+
+   ' cast(datePart(year,dt_mov) as varchar(04)) +''-''+ cast( datePart(month,dt_mov) as varchar(04)) +''-''+cast( datePart(day, dt_mov)as varchar(04) ), '+
+   'dlest.is_lanc, ';
+
+   if (tipoSaida = 'Vendas') then
+      cmd := cmd + '(qt_mov * -1) as qt_mov '
+   else
+      cmd := cmd + '(qt_mov) as qt_mov ';
+
+   cmd := cmd +
+   'from dlest (nolock) ' +
+   'inner join toper (NOLOCK) on dlest.is_oper = toper.is_oper '+
+   'where dlest.is_lanc in ( '+
+   'select is_lanc from dlest with (nolock) '+
+   'where dt_mov between ' +
+   fdt.dateTimeToSqlDateTime(dia, '00:00:00') +' and ' +
+   fdt.dateTimeToSqlDateTime(dia, '23:59:00')
+   + ') ' +
+   'and st_mov = '''' ' +
+   ' and toper.codTransacao in (' + cdTrans +') '+
+   'group by  dlest.is_ref, dlest.is_lanc , dlest.is_estoque, dlest.qt_mov, dlest.dt_mov';
+
+
+   if (insereDados = true) then
+   begin
+      cmd := 'insert zcf_DSdsi ' + cmd;
+      dm.execSQL(cmd);
+
+     // gravar no log a execucao
+      cmd := ' insert zcf_dsdei_log values('+ fdt.dateToSqlDate(dia) +', '+
+              quotedStr(copy(tipoSaida, 01, 01)) + ')';
+      dm.execSQL(cmd);
+   end
+   else
+   begin
+      ds:= dm.getDataSetQ(cmd);
+      fmMain.exportaDataSet(ds, nil);
+      ds.Free();
+   end;
+end;
+
+procedure cargaVendas_Entradas_remove(tipoEntrada:String; insereDados:boolean; dia:Tdate);
+var
+   cmd:String;
+begin
+   if (insereDados = true) then
+   begin
+      // remove o registros da tabela de entradas
+      cmd := ' delete from zcf_dsdei where dt_mov between ' +
+             fdt.dateTimeToSqlDateTime(dia, '00:00:00') +' and ' +
+             fdt.dateTimeToSqlDateTime(dia, '23:59:00') ;
+
+      dm.execSQL(cmd);
+
+     // remove o registro do log de entradas
+      cmd := 'delete from zcf_dsdei_log where data between ' +
+             fdt.dateTimeToSqlDateTime(dia, '00:00:00') +' and ' +
+             fdt.dateTimeToSqlDateTime(dia, '23:59:00') +' and ' +
+             'tipo = ' + quotedStr(copy(tipoEntrada, 01, 01));
+
+      dm.execSQL(cmd);
+   end;
+end;
+
+procedure cargaVendas_entradas(tipoEntrada:String; insereDados:boolean; dia:Tdate);
+var
+   cmd:String;
+   ds:TDataSet;
+begin
+   cmd :=
+   ' select is_estoque, is_lanc, ' +
+   fdt.dateToSqlDate(dia) +' as Data, '+
+   'dlest.is_ref, '+
+   'dlest.is_oper, '+
+   'qt_mov, ' +
+   'toper.codTransacao '+
+   'from dlest (nolock) '+
+   'inner join toper (NOLOCK) on dlest.is_oper = toper.is_oper';
+
+   if (tipoEntrada = 'Compras') then
+      cmd := cmd + ' and toper.codTransacao= 1 '
+   else
+      cmd := cmd + ' and toper.codTransacao= 3 ';
+
+   cmd := cmd +
+   'where toper.dt_trab between ' + fdt.dateTimeToSqlDateTime(dia, '00:00:00') +' '+
+   'and ' + fdt.dateTimeToSqlDateTime(dia, '23:59:00') +' ';
+
+   if (tipoEntrada = 'Transferencias') then
+      cmd :=  cmd + 'and dlest.is_estoque <> ' + fmMain.getUOCD() +' ';
+
+   cmd := cmd + 'and dlest.st_mov = '''' order by dlest.is_ref';
+
+
+   if (insereDados = true) then
+   begin
+      cmd := 'insert zcf_DSDEI ' + cmd;
+      dm.execSQL(cmd);
+
+      // grava na tabela de log
+      cmd := ' insert zcf_dsdei_log values('+ fdt.dateToSqlDate(dia) +', '+
+              quotedStr(copy(tipoEntrada, 01, 01)) + ')';
+      dm.execSQL(cmd);
+   end
+   else
+   begin
+      ds:= dm.getDataSetQ(cmd);
+      fmMain.exportaDataSet(ds, nil);
+      ds.Free();
+   end;
+end;
+
+function getDataUltCargaVendas():String;
+begin
+   result := dm.openSQL('select max(data) as data from zcf_dsdei_log where tipo = ''V'' ', 'data' );
+end;
+
+procedure verificaItensDeumNota(isNota:String);
+begin
+end;
+
+
+function getEstoqueProduto(uo, is_ref, tipoSaldo:String; data:Tdate):String;
+var
+   ds:TdataSet;
+   strTpSaldo, saldo, cmd:String;
+begin
+   // nao vou mais usar a data, por enquanto....
+
+   saldo := '0';
+
+   if (upperCase(tipoSaldo) = 'D') then
+      strTpSaldo:= 'qtSaldoDisponivel'
+   else
+      strTpSaldo:= 'SaldoFisico';
+
+   cmd := 'select ' + strTpsaldo + ' from viwestoque with(nolock) where is_ref= '+
+          is_ref + ' and is_estoque=' + uo;
+
+   ds := dm.getDataSetQ(cmd);
+
+   if (ds.isEmpty = false) then
+     saldo := ds.fieldByName(strTpSaldo).asString;
+
+   ds.free();
+   result := saldo;
+end;
+
+function getEstProdReq( uo, UO_CD, is_ref:String):integer;
+var
+  qtReq, estCD:integer;
+  cmd:String;
+begin
+  estCD := strToInt(  cf.getEstoqueProduto(UO_CD, is_ref, '1', now()) );
+  cmd := 'Select coalesce( (Select sum(qt_mov) from zcf_dspd(nolock) where is_ref= '+is_ref+ ' and is_uo= ' + uo + '), 0 ) as qt';
+  qtReq := strToInt(dm.openSQL(cmd,'qt'));
+  getEstProdReq := estCD - qtReq;
+end;
+
+
+function gerarRequisicao(tb:TADOTable; uo, UO_CD, usuario:String; mostraNumero, ehReqDeVenda:Boolean; var ocoItens:TStringList; QT_DIAS_PEND:integer):String;
+var
+  codEmpresa, cd_pes,is_planod,cmd, codTransacao,sq_opf,is_oper:String;
+  lista:TStringList;
+  is_movpd:integer;
+  nItensReq, i:integer;
+  incluiItem:boolean;
+  estReqCD:integer;
+  itensfora:String;
+begin
+   gravaLog('cf.gerarRequisicao()');
+
+   codEmpresa := dm.getParamBD('comum.CodEmpWell', '0');
+
+   nItensReq := 0;
+
+   lista:= Tstringlist.Create();
+   sq_opf := dm.getParamBD('osDeposito.sq_opfRequisicao', ''); //10000031  cod daTransacao integrada de requisicao
+   codTransacao := '4';  // tipo de transacao
+
+   try
+      // obter o cd_pes
+      cd_pes :=   dm.GetValorWell( 'O', 'select cd_pes from dsusu where cd_usu = '+ usuario, 'cd_pes' );
+
+      is_oper := inserirToper( usuario, sq_opf, codTransacao, '');
+
+      //obter o numero do  plano
+      is_planod := dm.getContadorWell('is_planod');
+
+
+//      getStrInsPlanoDist(isPlanoD, cdPes, isOper, uoCd:String):String;
+
+
+       cmd :=  ' exec StoInsertPlanoDistribuição ' +#13+
+                 '@DT_PLANOD=' + fdt.DateTimeToSqlDateTime(dateToStr(now), '')  +' , '+#13+
+                 '@IS_PLANOD=' + is_planod +' , '+#13+
+                 '@cd_usu=' + cd_pes       +' , '+#13+
+                 '@is_oper='+ is_oper      +' , '+#13+
+                 '@is_tpdoc=5'             +' , '+#13+
+                 '@is_estoque=' +UO_CD +', ' +#13+
+                 '@IS_EMP='+codEmpresa+ ', @ST_PD=''2'' , @TP_PLANOD=4 , @CDPES=0 ';
+       lista.add(cmd);
+
+       tb.First;
+       i:=1;
+       while (tb.Eof = false) do
+       begin
+          estReqCD :=  cf.getEstProdReq( uo, UO_CD, tb.fieldByname('is_ref').AsString);
+
+          incluiItem := true;
+
+          if (tb.FieldByName('Qt Pedida').AsInteger >  estReqCD ) and ( ehReqDeVenda = false ) then
+          begin
+             ocoItens.Add(tb.fieldByName('codigo').AsString +' '+ copy(tb.fieldByName('ds_ref').AsString, 01, 30)  +  ' - Sem estoque disponível.');
+             incluiItem := false;
+          end;
+
+          if (ehReqDeVenda = false) and (uEstoque.isReqPendProduto(UO_CD, uo, tb.fieldByname('is_ref').AsString, QT_DIAS_PEND).IsEmpty = false ) then
+          begin
+             ocoItens.Add(tb.fieldByName('codigo').AsString +' '+ copy(tb.fieldByName('ds_ref').AsString, 01, 30)  +  ' - Há requisição pendente.');
+             incluiItem := false;
+          end;
+
+
+          if (incluiItem = true) then
+          begin
+       //      inc(is_movpd);
+             is_movpd := StrToInt( dm.getContadorWell('IS_movpd') );
+             cmd := ' exec StoInsertItensPlanoDistribuição' +
+                    ' @IS_MOVPD=' + IntToStr(is_movpd) +' , '+
+                    ' @IS_ESTOQUE=' + uo +' , '+
+                    ' @IS_REF=' + tb.fieldByName('is_ref').asString +' , '+
+                    ' @DT_MOVPD=' +fdt.DateTimeToSqlDateTime(dateToStr(now), '' ) +' , '+
+                    ' @IS_OPER=' + is_oper +' , '+
+                    ' @IS_EMP=10033585'  +' , '+
+                    ' @IS_PLANOD= ' + is_planod +' , '+
+                    ' @NR_ITPD=' + intToStr(i)  +' , '+
+                    ' @QT_PED=' + tb.fieldByName('Qt Pedida').asString+' , '+
+                    ' @QT_PEND=0 ' +' , '+
+                    ' @CD_GRDCOMPRAS=0,  @CD_GRDDISTRIBUICAO=0,@PC_QTDE=100, ' +
+                    ' @QtdASeparar= ' + tb.fieldByName('Qt Pedida').asString+' , ' +
+                    ' @QtdEmSeparacao=0 , @QtdSeparada=0 , @QtdNaoSeparada=0 , @QtdTransferida=0 , @ST_PD=''2'' , @AtualizaLancamentosEstoque=''S'' , @QtdCancelada=0 , @CD_CHV=''          '' ';
+             lista.add(cmd);
+             inc(i);
+             inc(nItensReq);
+          end;
+          tb.Next;
+       end;
+
+      if (nItensReq > 0) then
+      begin
+         for i:=0 to lista.Count-1 do
+            dm.execSQL(lista[i]);
+
+         if (mostraNumero = true) then
+           msg.msgExclamation('Gerada a requisição: ' + is_planod);
+
+         result := is_planod;
+      end
+      else
+      begin
+          dm.execSQL('exec stoExcluirPlanoDistribuicao ' + is_planod);
+          msg.msgErro(' Não foi gerada nenhuma requisição.');
+          result := '';
+      end;
+
+      itensFora := '';
+      if (ocoItens.Count > 0) then
+      begin
+         for i:=0 to ocoItens.Count-1 do
+         begin
+            itensfora := itensFora + ocoItens[i] + #13;
+            f.gravaLog(ocoItens[i]);
+         end;
+         msg.msgExclamation('Para alguns itens não serão feitas requisições:' + #13 + itensFora);
+      end;
+
+   except
+      on e:Exception do
+      begin
+         msg.msgErro('Ocorreu um erro: ' +#13+ e.Message);
+         result := '';
+      end
+   end;
+end;
+
+function getImagemProduto(is_ref:String):TdataSet;
+var
+   cmd:String;
+begin
+   screen.cursor := -11;
+   cmd :=
+   ' select i.imagem from zcf_crefe_imagens i  where i.is_ref = ' + is_ref;
+   result := dm.getDataSetQ(cmd);
+   screen.cursor := -11;
+end;
+
+procedure carregaImagem(is_ref:String; image: TImage);
+var
+  dsImagem:TdataSet;
+begin
+   image.Picture.Assign(nil);
+   image.Refresh();
+   dsImagem := getImagemProduto( is_ref );
+   Image.Picture.Assign(dsImagem.FieldByName('imagem'));
+   dsImagem.free();
+end;
+
+
+function inserirToper(usuario, sq_opf, codTransacao, fl_entrada:string):string;
+var
+   is_oper, cmd, emp:string;
+begin
+   emp := '10033585';
+   is_oper := dm.getContadorWell('is_oper');
+
+   cmd := dm.getCMD('Estoque', 'insertToper');
+
+   dm.setParams(cmd, is_oper, fdt.DateTimeToSqlDateTime(now, ''), emp );
+   dm.setParams(cmd, sq_opf, fdt.DateTimeToSqlDateTime(dateToStr(now), timeToStr(now)), usuario);
+   dm.setParam(cmd, quotedStr(fl_entrada) );
+
+   dm.execSQL(cmd);
+   result := is_oper;
+end;
+
+function isEstacaoPermitida(estacao:String):boolean;
+var
+   cmd:String;
+begin
+   cmd := dm.getQtCMD1('adm', 'verEstacaoBloq', estacao);
+   result := (dm.getDataSetQ(cmd).IsEmpty = true);
+end;
+
+
+
+end.

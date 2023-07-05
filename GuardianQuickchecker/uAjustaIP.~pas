@@ -1,0 +1,468 @@
+unit uAjustaIP;   // Æ
+
+interface
+
+uses
+Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, winSock, f, IniFiles, adLabelComboBox, clipbrd, shellapi,
+  TFlatSpeedButtonUnit, ExtCtrls, IdBaseComponent, IdComponent, IdRawBase,
+  IdRawClient, IdIcmpClient, AppEvnts, DBCtrls, fDBCtrls, adLabelEdit,
+  Buttons, fCtrls, IdTCPConnection, IdTCPClient, IdTelnet, CoolTrayIcon,
+  Menus, ComCtrls, IdIntercept, IdLogBase, IdLogFile;
+
+type
+  TfmAjustaIP = class(TForm)
+    Timer1: TTimer;
+    ApplicationEvents1: TApplicationEvents;
+    fsBitBtn1: TfsBitBtn;
+    edStatus: TadLabelEdit;
+    CoolTrayIcon1: TCoolTrayIcon;
+    PopupMenu1: TPopupMenu;
+    Restaurar1: TMenuItem;
+    Sair1: TMenuItem;
+    lbServer: TLabel;
+    lbPorta: TLabel;
+    Timer2: TTimer;
+    sb: TStatusBar;
+    procedure executaScript(comandos:TstringList);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormCreate(Sender: TObject);
+    function pingToServer():boolean;
+    procedure ApplicationEvents1Exception(Sender: TObject; E: Exception);
+    procedure fsBitBtn1Click(Sender: TObject);
+    procedure idTelnetDataAvailable(Sender: TIdTelnet;const Buffer: String);
+    function testaConexao():boolean;
+    procedure addLinhas(str:String);
+    procedure acaoDeFalha();
+    procedure Sair1Click(Sender: TObject);
+    procedure Restaurar1Click(Sender: TObject);
+    procedure Timer1Timer(Sender: TObject);
+    procedure Timer2Timer(Sender: TObject);
+    function isEANValido():boolean;
+    function lerParamSL(valor:String):String;
+    function EnumWindowsProc(Wnd : HWnd;Form : TfmAjustaIP) : Boolean; Export; {$ifdef Win32} StdCall; {$endif}
+    function isQuickCheckAberto():boolean;
+    function getTamLog():String;
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  fmAjustaIP: TfmAjustaIP;
+  TIME:INTEGER;
+  H:TStringlist;
+  tamLog:String;
+implementation
+
+uses msg, Math;
+
+{$R *.dfm}
+
+function TfmAjustaIP.isQuickCheckAberto: boolean;
+var
+  res:boolean;
+  janela:string;
+begin
+   f.gravaLog('VerificaQuickCheckAberto()');
+   janela :=lerParamSL('nmJanela');
+   f.gravaLog(FindWindow( pchar(janela) , nil));
+
+   if FindWindow('ConsoleWindowClass', pchar(janela)) <= 0 then
+   begin
+      f.gravaLog('Não achei a instancia do programa');
+      res := false;
+   end
+   else
+   begin
+      f.gravaLog('Qwchecker.exe está rodando.');
+      res := true;
+   end;
+   Result := res;
+end;
+
+
+function TfmAjustaIP.lerParamSL(valor: String): String;
+var
+   aux:String;
+begin
+   aux := H.Values[valor];
+   result := aux;
+end;
+
+
+procedure TfmAjustaIP.addLinhas(str:String);
+begin
+   sb.Panels[0].Text:= str;
+end;
+
+function ExecAndWait(const FileName, Params: string;  const WindowState: Word): boolean;
+var
+  SUInfo: TStartupInfo;
+  ProcInfo: TProcessInformation;
+  CmdLine: string;
+begin
+  { Coloca o nome do arquivo entre aspas. Isto é necessário devido aos espaços contidos em nomes longos }
+  CmdLine := '"' + Filename + '"' + Params;
+  FillChar(SUInfo, SizeOf(SUInfo), #0);
+  with SUInfo do begin
+  cb := SizeOf(SUInfo);
+  dwFlags := STARTF_USESHOWWINDOW;
+  wShowWindow := WindowState;
+  end;
+  Result := CreateProcess(nil, PChar(CmdLine), nil, nil, false,
+  CREATE_NEW_CONSOLE or NORMAL_PRIORITY_CLASS, nil,
+  PChar(ExtractFilePath(Filename)), SUInfo, ProcInfo);
+  { Aguarda até ser finalizado }
+  if Result then begin
+  WaitForSingleObject(ProcInfo.hProcess, INFINITE);
+  { Libera os Handles }
+  CloseHandle(ProcInfo.hProcess);
+  CloseHandle(ProcInfo.hThread);
+  end;
+end;
+
+procedure TfmAjustaIP.executaScript(comandos:TstringList);
+var
+  WindowState: Word;
+  bat : string;
+  i:integer;
+  arq:TStringList;
+begin
+   screen.Cursor := crHourGlass;
+
+   f.gravaLog('executaScript()');
+   f.gravaLog(comandos);
+
+// encapsular o comando em um arquivo.bat
+   arq := TStringlist.Create();
+
+   for i:= 0 to comandos.Count -1 do
+      arq.Add(comandos[i]);
+
+
+   if ( lerParamSL('showScript') = '1') then
+   begin
+      WindowState := sw_normal;
+      arq.Add('Pause');
+   end
+   else
+      WindowState := sw_hide;
+
+   bat := f.getDirExe()+'execAndWait.bat';
+
+   arq.SaveToFile(bat);
+   arq.Free();
+
+   if f.getIdxParam('-t') <= 0 then
+      ExecAndWait(bat, '', WindowState);
+
+   sleep(2000);
+   screen.Cursor := crDefault;
+end;
+
+procedure TfmAjustaIP.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+   deleteFile(f.getDirExe()+'execAndWait.bat');
+end;
+
+procedure TfmAjustaIP.FormCreate(Sender: TObject);
+var
+  janela:String;
+begin
+   f.limparLog();
+
+   H := f.getParamsArIni(f.getDirExe() + getNomeDoExecutavel() + '.ini');
+   f.gravaLog(H);
+
+  fmAjustaIP.lbServer.caption := lerParamSL( 'ipSrvQuickChecker');
+  fmAjustaIP.lbPorta.caption := lerParamSL('porta');
+
+   if f.getIdxParam('-t') <=0 then
+   begin
+      timer1.Interval := strToInt(lerParamSL('intervaloConsulta')+ '000');
+      timer1.Enabled := true;
+
+      TIME := Timer1.Interval;
+      timer2.Enabled := true;
+   end;
+   CoolTrayIcon1.IconVisible := true;
+
+   fmAjustaIP.Top := screen.Height - (fmAjustaIP.Height + 30);
+   fmAjustaIP.Left := screen.Width - (fmAjustaIP.Width + 30);
+/////////////
+end;
+
+function TfmAjustaIP.pingToServer(): boolean;
+var
+   res:boolean;
+   resp:Tstringlist;
+begin
+{   try
+      resp:= Tstringlist.create();
+      if idTelnet.Connected = true then
+         idTelnet.Disconnect();
+
+      idTelnet.Host := lbserver.caption;
+      idTelnet.Port := strToInt(lbPorta.Caption);
+      idTelnet.Connect(300);
+
+      sleep(3000);
+//      idtelnet.ReadChar;
+//      idtelnet.DisconnectSocket();
+
+      if idTelnet.Connected then
+         res:= true
+      else
+         res:= false;
+
+   except
+      on e:exception do
+      begin
+         f.gravaLog(e.Message);
+         res:= false;
+      end
+   end;
+   result := res;
+   }
+end;
+
+procedure TfmAjustaIP.ApplicationEvents1Exception(Sender: TObject;
+  E: Exception);
+begin
+   f.gravaLog(e.MethodName(sender));
+   f.gravaLog(e.Message);
+end;
+
+procedure TfmAjustaIP.idTelnetDataAvailable(Sender: TIdTelnet;
+  const Buffer: String);
+begin
+//   F.gravaLog('idTelnetDataAvailable->' +  Buffer );
+end;
+
+function TfmAjustaIP.testaConexao():boolean;
+var
+   res:boolean;
+begin
+
+   sb.Panels[0].text := ('Servidor:' + lbServer.Caption + ':' + lbPorta.Caption);
+   edStatus.Font.Size := 12;
+   edStatus.Font.Style := [fsBold];
+
+   res:= pingToServer();
+   if ( res = true)  then
+   begin
+      with edStatus do
+      begin
+         Font.color := clblue;
+         Text := 'Conectado !';
+      end
+   end
+   else
+   begin
+      with edStatus do
+      begin
+         Font.color := clRed;
+         Text := 'Sem conexão';
+      end
+   end;
+   result := res;
+end;
+
+procedure TfmAjustaIP.acaoDeFalha;
+var
+   cmd: String;
+   i:integer;
+   comandos:TSTringlist;
+begin
+   Timer1.Enabled := false;
+   f.gravaLog('             ');
+   f.gravaLog('Tentando restaurar....');
+   f.gravaLog('------------------------------------------');
+
+   comandos := TStringlist.Create();
+   for i:=1 to 10 do
+   begin
+      cmd := lerParamSL('acao'+intToStr(i));
+      if (Length(cmd) > 5) then
+      begin
+         comandos.Clear();
+         comandos.Add(cmd);
+         executaScript(comandos);
+      end;
+   end;
+   comandos.Free();
+   Timer1.Enabled := true;
+   edStatus.Text :=  DateTimeToStr(now);
+end;
+
+procedure TfmAjustaIP.Sair1Click(Sender: TObject);
+begin
+   application.Terminate();
+end;
+
+procedure TfmAjustaIP.Restaurar1Click(Sender: TObject);
+begin
+   Application.Restore();
+   Application.BringToFront();
+end;
+
+procedure TfmAjustaIP.Timer1Timer(Sender: TObject);
+begin
+   fsBitBtn1Click(nil);
+end;
+
+
+
+procedure TfmAjustaIP.Timer2Timer(Sender: TObject);
+var
+   val:integer;
+begin
+   TIME := (TIME - 1000);
+
+   val := TIME div 1000;
+
+   sb.Panels[1].Text := intToStr(val);
+
+   if TIME <= 0 then
+      TIME := Timer1.Interval;
+end;
+
+
+
+function TfmAjustaIP.isEanValido: boolean;
+var
+   arq:TStringList;
+   i, inicio, fim :integer;
+   ean:String;
+   res:boolean;
+   nmArq, nmArqTemp:String;
+begin
+   f.gravaLog('isEanValido() - inicio');
+   arq := TStringlist.Create();
+
+   if FileExists(lerParamSL('arqLog4')) then
+      nmArq :=  lerParamSL('arqLog4')
+   else if FileExists(lerParamSL('arqLog3')) then
+      nmArq :=  lerParamSL('arqLog3')
+   else if FileExists(lerParamSL('arqLog2')) then
+      nmArq :=  lerParamSL('arqLog2')
+   else if FileExists(lerParamSL('arqLog1')) then
+      nmArq :=  lerParamSL('arqLog1')   ;
+
+   nmArqTemp := nmArq;
+   insert('_', nmArqTemp, length(nmArq)-3 );
+
+   DeleteFile(nmArqTemp);
+   copyFile(pchar(nmArq), pchar(nmArqTemp), true);
+
+   arq.LoadFromFile(nmArqTemp);
+
+   if arq.Count < 10 then
+   begin
+      fim := 0;
+      inicio := 1;
+   end
+   else
+   begin
+      inicio := arq.Count -11;
+      fim := arq.Count -1
+   end;
+
+   res := true;
+   for i:= inicio to fim do
+   begin
+      f.gravaLog('Linha -|' + arq[i]);
+      if (Pos('ConsultaProduto - 0', arq[i]) > 0) and ((Pos('EAN Recebido pela DLL', arq[i]) = 0))   then
+      begin
+         ean := trim ( copy(arq[i], 43, 50));
+         f.gravaLog('Consultar EAN->'+ ean);
+
+         res := f.isEAN13(ean);
+      end;
+   end;
+
+   arq.Free();
+   result := res;
+   DeleteFile(nmArqTemp);
+   f.gravaLog('isEanValido() - fim');
+
+end;
+
+function TfmAjustaIP.EnumWindowsProc(Wnd : HWnd;Form : TfmAjustaIP) : Boolean; Export; {$ifdef Win32} StdCall; {$endif}
+begin
+end;
+
+procedure TfmAjustaIP.fsBitBtn1Click(Sender: TObject);
+var
+   slCmd:TStringlist;
+   tamAtual, strStatus:String;
+begin
+  f.gravaLog('Teste feito em-> ' + dateTimeToStr(now));
+{   if ( isEanValido() = false) or (isQuickCheckAberto() = false)    then
+      if (lerParamSL('executaAcaoDeFalha') = '1') then
+         acaoDeFalha()
+      else
+         f.gravaLog('Falha detectada, mas executaAcaoDeFalha desabilitado')
+
+   slCmd := TStringList.Create();
+   slCmd.add(lerParamSL('cmdGeraArqStatusService'));
+   f.executaScript(slCmd, true);
+
+   slCmd.Clear;
+   slCmd.LoadFromFile(f.tempDir() +'\statusQuickwayChecker.dat');
+   strStatus := trim(lerParamSL('statusDeParado'));
+
+   if (pos( strStatus, slCmd[3]) > 0) then
+      acaoDeFalha();
+
+
+   slCmd.Clear();
+}
+   tamAtual := getTamLog();
+
+   if (tamLog = tamAtual) and (tamLog <> '') then
+   begin
+      acaoDeFalha();
+
+      tamLog :=  tamAtual;
+   end
+   else
+   begin
+      tamLog :=  tamAtual;
+   end;
+
+
+
+
+
+
+
+end;
+
+
+function TfmAjustaIP.getTamLog(): String;
+var
+   i:integer;
+   total:real;
+   arq:String;
+begin
+   total := 0;
+   for i:=0 to 10 do
+   begin
+      arq := lerParamSL('arqLog' + intToStr(i));
+      if FileExists(arq) then
+      begin
+         with TFileStream.Create(Arq, fmOpenRead or fmShareExclusive) do
+         try
+            total := total + size;
+         finally
+            Free;
+         end;
+      end;
+   end;
+   result := floatToStr(total);
+end;
+
+end.

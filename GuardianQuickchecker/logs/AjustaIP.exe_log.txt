@@ -1,0 +1,4 @@
+netsh interface ip set address "Local" Static 125.0.99.112 255.0.0.0 125.4.4.252 1
+netsh interface ip set dns "Local" STATIC 125.4.4.252
+netsh interface ip set address "Local" DHCP
+netsh interface ip set dns "Local" DHCP

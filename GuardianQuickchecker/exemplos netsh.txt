@@ -1,0 +1,5 @@
+netsh interface ip set address "Conexão local" static 125.0.2.102 255.0.0.0 125.4.4.252
+
+
+
+netsh interface ip set address "Conexão local" DHCP

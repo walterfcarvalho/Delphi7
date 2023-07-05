@@ -1,0 +1,3 @@
+netsh interface ip set address "ConexÆo local" static 125.0.2.102 255.0.0.0 125.4.4.252
+
+pause

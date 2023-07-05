@@ -1,0 +1,13 @@
+Lendo parâmentro ini, seção:Conexao, chave: url, Resultado: 
+parâmetro não encontrado !!!! parâmentro ini, seção:Conexao, chave: url, Resultado: 
+Lendo parâmentro ini, seção:Conexao, chave: server, Resultado: 
+parâmetro não encontrado !!!! parâmentro ini, seção:Conexao, chave: server, Resultado: 
+Lendo parâmentro ini, seção:Conexao, chave: bd, Resultado: 
+parâmetro não encontrado !!!! parâmentro ini, seção:Conexao, chave: bd, Resultado: 
+Lendo parâmentro ini, seção:Conexao, chave: password, Resultado: 
+parâmetro não encontrado !!!! parâmentro ini, seção:Conexao, chave: password, Resultado: 
+Lendo parâmentro ini, seção:Conexao, chave: user, Resultado: 
+parâmetro não encontrado !!!! parâmentro ini, seção:Conexao, chave: user, Resultado: 
+funcoes.getNomeDaEstacao():DELLVALTER_valter
+String de conexão:---------------------------- 
+

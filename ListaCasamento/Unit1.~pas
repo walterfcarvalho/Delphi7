@@ -1,0 +1,703 @@
+unit Unit1;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, DBCtrls, adLabelDBComboBox, Menus, dbgrids,
+  AppEvnts, DB, ADODB, Mask, adLabelDBEdit, ComCtrls, TFlatAnimationUnit,
+  mxOneInstance, ActnList, Buttons,  TFlatButtonUnit, RpBase, RpSystem,
+  RpRave, RpDefine, RpCon, RpConDS, adLabelComboBox, ExtCtrls, RpRender,
+  RpRenderPDF;
+
+type
+  TfmMain = class(TForm)
+    MainMenu1: TMainMenu;
+    CadastrodeListas1: TMenuItem;
+    ProdutosnNasListas1: TMenuItem;
+    ApplicationEvents1: TApplicationEvents;
+    mxOneInstance1: TmxOneInstance;
+    iposdeProdutos1: TMenuItem;
+    sugestodeProdutos1: TMenuItem;
+    Query1: TADOQuery;
+    Cadastrodetipos1: TMenuItem;
+    iposdelistas1: TMenuItem;
+    table1: TADOTable;
+    sb: TStatusBar;
+    Configurao1: TMenuItem;
+    Relatrios1: TMenuItem;
+    ProdutosCompradosporpeodo1: TMenuItem;
+    Panel1: TPanel;
+    GroupBox1: TGroupBox;
+    Label1: TLabel;
+    dp1: TDateTimePicker;
+    dp2: TDateTimePicker;
+    cb1: TadLabelComboBox;
+    VendasTotaisporlista1: TMenuItem;
+    RvProject1: TRvProject;
+    RvDSConn: TRvDataSetConnection;
+    RvSystem: TRvSystem;
+    N1: TMenuItem;
+    Geracaodecrdito1: TMenuItem;
+    RvDSConn2: TRvDataSetConnection;
+    RvDSConn3: TRvDataSetConnection;
+    Listaritensparaentrega1: TMenuItem;
+    RvRenderPDF: TRvRenderPDF;
+    procedure FormCreate(Sender: TObject);
+    procedure CadastrodeListas1Click(Sender: TObject);
+    procedure EscondeMenu();
+    procedure mostraMenu(sender:tobject);
+    procedure ADOConnection1WillExecute(Connection: TADOConnection;var CommandText: WideString; var CursorType: TCursorType;var LockType: TADOLockType; var CommandType: TCommandType; var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;const Command: _Command; const Recordset: _Recordset);
+    procedure ADOConnection1ExecuteComplete(Connection: TADOConnection; RecordsAffected: Integer; const Error: Error;var EventStatus: TEventStatus; const Command: _Command;const Recordset: _Recordset);
+    procedure ProdutosnNasListas1Click(Sender:Tobject);
+    procedure AbreFormPesquisa(sender:tobject;Act:integer);
+    function EhlistaDaloja(num:string;MostraMensagem:boolean): boolean;
+    procedure verLogClick(Sender: TObject);
+    procedure ApplicationEvents1Exception(Sender: TObject; E: Exception);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure mxOneInstance1InstanceExists(Sender: TObject);
+    procedure iposdeProdutos1Click(Sender: TObject);
+    procedure sugestodeProdutos1Click(Sender: TObject);
+    procedure iposdelistas1Click(Sender: TObject);
+    procedure Query1DeleteError(DataSet: TDataSet; E: EDatabaseError;var Action: TDataAction);
+    function GetTiposListas(MostrarTodas:boolean;  tiposPListar:String):Tstrings;
+    procedure SalvaColDbgrid(NomeForm:String;Dbgrid:tdbgrid);
+    procedure LerColunasDbgrid(NomeForm:string;Dbgrid:tdbgrid);
+    function  HaParametroInvalido(sender:Tobject):boolean;
+    procedure AbrirLista(num:string);
+    function  GetNumLojas(Loja:String ):Tstrings;
+    function  RParReg(NomeParam:String):string;
+    function  WParReg(NomeParam,valor:String):boolean;
+    procedure Query1AfterOpen(DataSet: TDataSet);
+    procedure Configurao1Click(Sender: TObject);
+    procedure ProdutosCompradosporpeodo1Click(Sender: TObject);
+    function  InVencLista():string;
+    function  FimVencLista():string;
+    procedure cb1Change(Sender: TObject);
+    procedure dp1Change(Sender: TObject);
+    procedure dp2Change(Sender: TObject);
+    function  PosicaoBotoes(form:Tform):integer;
+    procedure atualizaDadosItensLista(nItens, nItensComprados, vItensComprados,nLista:String);
+    procedure VendasTotaisporlista1Click(Sender: TObject);
+    procedure BaixaAvulsa1Click(Sender: TObject);
+    function GetParamBD(nParametro,loja:String):String;
+    procedure FormResize(Sender: TObject);
+    procedure N1Click(Sender: TObject);
+    procedure Geracaodecrdito1Click(Sender: TObject);
+    procedure ConexaoWellWillExecute(Connection: TADOConnection; var CommandText: WideString; var CursorType: TCursorType; var LockType: TADOLockType; var CommandType: TCommandType;      var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;      const Command: _Command; const Recordset: _Recordset);
+    procedure renomarArquivoUpgrade();
+    procedure FormActivate(Sender: TObject);
+    function getAutorizadorWell(grupos, usuarios:String): String;
+    function getconexaoWell():TADOconnection;
+    procedure imprimeRave(qr, qr2, qr3:TDataSet; nRelatorio:String; params:Tstrings);
+
+    function getPerfilImp():String;
+
+    function isCodClClienteWell(cod:String):boolean;
+    procedure Listaritensparaentrega1Click(Sender: TObject);
+    procedure FormShow(Sender: TObject);
+    procedure impressaoRavePDF(qr,qr2:TDataSet; nRelatorio:String; params:Tstrings;nmArquivo:String);
+	procedure imprimeParaImpressora(qr, qr2, qr3:TDataSet; nRelatorio:String; params:Tstrings);
+
+private
+    { Private declarations }
+  public
+     acao:integer;
+
+    { Public declarations }
+  end;
+
+  const
+
+  VERSAO = '15.01.01';
+
+var
+  fmMain: TfmMain;
+  PATH:ansiString;
+  TITULO:ansiString;
+  ARQ_DE_IMPRESSAO:ansiString;
+
+implementation
+
+uses unit2, unit3, unit4, unit5, unit6, unit7, unit8, unit9, uBaixaAvulsa {, uAutorizacao,}
+  , Math, uDm, msg, fdt, uEntCaminhao, uAutorizacao, f;
+
+{$R *.dfm}
+
+procedure TfmMain.renomarArquivoUpgrade();
+  var
+     acao:boolean;
+  begin
+     acao := ( FileExists( extractFilePath(paramStr(0)) + 'ListaNovo.exe') = true );
+     f.gravaLog('nova versão do lancador?: ' + BoolToStr(acao, true) );
+     if (acao = true) then
+     begin
+        f.gravaLog('Atualização do lancador:' );
+        acao := deleteFile(pChar(extractFilePath(paramStr(0)) + 'Lista.exe'));
+        f.gravaLog('Deletar arquivo lancador: ' + boolToStr(acao, true) );
+        acao := renameFile( extractFilePath(paramStr(0)) + 'ListaNovo.exe',  extractFilePath(paramStr(0)) + 'Lista.exe' );
+        f.gravaLog('Renomear o ListaNovo.exe para Lista.exe : ' + boolToStr(acao, true) );
+     end;
+  end;
+
+procedure TfmMain.FormCreate(Sender: TObject);
+begin
+   f.limparLog();
+
+   if haParametroInvalido(sender) = true then
+   begin
+      msg.msgerro( ' Exitem parâmetros não preenchidos '+#13+ ' Execute o configurador (ConfigListas.exe) e informe os parâmetros');
+      application.terminate;
+   end;
+
+   query1.Connection := dm.con;
+
+
+   if  shortDateFormat <> 'dd/MM/yyyy'  then
+   begin
+      msg.msgErro( 'ATENÇÃO!!!!'+#13+'A data está em formato diferente ( o correto é  dd/MM/aaaa ) e não posso continuar.'+#13+'Consulte o suporte para corrigir esse problema');
+      application.Terminate
+   end;
+   PATH   := ExtractFilePath(ParamStr(0));
+   TITULO := VERSAO + ' - Gerenciador de listas - Versão: ';
+   ARQ_DE_IMPRESSAO := PATH + 'EspelhoLista.txt';
+
+   fmMain.top := -1;
+   fmMain.caption := TITULO;
+
+   sb.Panels[1].Text :=  'Loja - '+RParReg('Loja') + '   -   Servidor: '+ RParReg('IpServer');
+
+   f.WParReg('listas', 'versao',VERSAO);
+   if RParReg('loja') <> '00' then
+      mainmenu1.Items[2].Visible := false;
+
+
+   f.limparLog();
+   f.carregaCampos(fmMain);
+
+
+   dm.loadCommandsBD(f.getDirExe() + 'cmdListas.dll');
+end;
+
+function TfmMain.WParReg(NomeParam,valor: String): boolean;
+begin
+  f.WParReg('listas', NomeParam, valor);
+  result:=true;
+end;
+
+function TfmMain.RParReg(NomeParam: String): string;
+var
+   aux:String;
+begin
+   aux := f.RParReg('listas', NomeParam);
+//   f.gravaLog('RparReg, ' + NomeParam   + ' valor: '+ aux );
+   result := f.RParReg('listas', NomeParam);
+end;
+
+function tfmMain.HaParametroInvalido(sender:Tobject):boolean;
+var
+  par:Tstringlist;
+  i:integer;
+  res:boolean;
+begin
+  par := Tstringlist.Create();
+  par.add('Versao');  par.add('Loja');  par.add('PortaImp');
+  par.add('TitRel');    par.add('MostraErros');  par.add('HostFTP');   par.add('User');
+  par.add('TipoImp');      par.add('IPServer');  par.add('DBName');
+
+  res:= false;
+  for i:=0 to par.count-1 do
+     if f.RParReg('listas',par[i]) = '' then
+     begin
+        msg.msgErro('Falta o parâmetro: ' + par[i]);
+        res := true;
+        PAR.Destroy;
+        break;
+     end;
+   result := res;
+end;
+ 
+function TfmMain.EhlistaDaloja(num:string; MostraMensagem:boolean): boolean;
+begin
+   if (num = rParReg('loja') ) or ( f.RParReg('listas', 'loja') = '00' )  then
+      EhlistaDaloja := true
+   else
+   begin
+      if MostraMensagem = true then
+         msg.msgErro('Você não pode trabalhar com os dados desta lista, pois ela pertence à loja '+ f.preencheCampo(02,'0','e', num) +'.');
+      EhlistaDaloja := false;
+   end;
+end;
+
+procedure TfmMain.CadastrodeListas1Click(Sender: TObject);
+begin
+   fmMain.EscondeMenu();
+   Application.CreateForm(TForm2, Form2);
+   form2.show;
+end;
+
+procedure TfmMain.iposdeProdutos1Click(Sender: TObject);
+begin
+   fmMain.EscondeMenu();
+   Application.CreateForm(TForm5, Form5);
+   form5.show;
+end;
+
+
+procedure TfmMain.ADOConnection1WillExecute(Connection: TADOConnection; var CommandText: WideString; var CursorType: TCursorType;  var LockType: TADOLockType; var CommandType: TCommandType;  var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;  const Command: _Command; const Recordset: _Recordset);
+begin
+   screen.Cursor := crhourGlass;
+   f.gravaLog(CommandText);
+end;
+
+procedure TfmMain.ADOConnection1ExecuteComplete(Connection: TADOConnection;RecordsAffected: Integer; const Error: Error;var EventStatus: TEventStatus; const Command: _Command;const Recordset: _Recordset);
+begin
+   screen.Cursor := crdefault;
+end;
+
+procedure TfmMain.AbreFormPesquisa(sender: tobject; Act: integer);
+begin
+   Application.CreateForm(TForm4, Form4);
+   Form4.configuraTela(Act);
+   form4.Show;
+end;
+
+procedure TfmMain.verLogClick(Sender: TObject);
+begin
+   winexec(pchar('notepad ' +PATH+ 'ErrorLog.txt'),sw_normal)
+end;
+
+procedure TfmMain.ApplicationEvents1Exception(Sender: TObject; E: Exception);
+begin
+   f.gravaLog(' Erro : ' +  dateToStr(now)+' Loja:'+ rParReg('loja') +' '+ timetostr(now) +' '+ e.ClassName + '  '+ e.Message);
+   if UpperCase(RParReg('mostraErros')) = 'S' then
+      msg.msgErro('    Ocorreu um erro no programa   '+#13+'    Se ele persisitir contate o suporte'+#13+ '    O erro foi: '+#13+#13);
+end;
+
+procedure TfmMain.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+   deletefile( path +'listacasamento.cfg' );
+   deletefile( path +'espelholista.txt' );
+   deleteFile(f.TempDir()+'Querys_ListaCasamento.txt');
+
+   f.salvaCampos(fmMain);
+end;
+
+procedure TfmMain.mxOneInstance1InstanceExists(Sender: TObject);
+begin
+   msg.msgErro(#13 + ' Este programa já está sendo executado !!');
+   application.terminate;
+end;
+
+procedure TfmMain.EscondeMenu();
+begin
+   panel1.visible := false;
+   fmMain.Menu := nil;
+end;
+
+procedure TfmMain.mostraMenu(sender: tobject);
+begin
+   fmMain.Menu := mainmenu1;
+   panel1.visible := true;
+   fmMain.sb.Panels[0].text :='';
+   fmMain.cb1.Items.Clear;
+   fmMain.cb1.Items.Add('- Todas');
+   fmMain.cb1.Items.Add('- Período');
+   fmMain.cb1.ItemIndex :=  StrToint(fmMain.RParReg('MostraListas'));
+   cb1Change(Sender);
+end;
+
+procedure TfmMain.ProdutosnNasListas1Click(Sender:Tobject);
+begin
+   fmMain.EscondeMenu();
+   fmMain.Menu := mainmenu1;
+   Application.CreateForm(TForm3, Form3);
+   form3.show;
+end;
+
+procedure TfmMain.sugestodeProdutos1Click(Sender: TObject);
+begin
+   fmMain.EscondeMenu();
+   Application.CreateForm(TfmSugestao, fmSugestao);
+   fmSugestao.show;
+end;
+
+procedure TfmMain.iposdelistas1Click(Sender: TObject);
+begin
+   fmMain.EscondeMenu();
+   Application.CreateForm(TForm7, Form7);
+   form7.show;
+end;
+
+procedure TfmMain.Query1DeleteError(DataSet: TDataSet; E: EDatabaseError; var Action: TDataAction);
+begin
+   msg.msgErro(' - Não é possivel executar a operação. O erro é: ' +#13+#13+ e.Message);
+end;
+
+function TfmMain.GetTiposListas(MostrarTodas:boolean; tiposPListar:String): Tstrings;
+var
+   r2:Tstringlist;
+   ds:TDataSet;
+begin
+   ds:= dm.getDataSetQ('select descricao, CodLista from tipolistas where codLista > -1 order by descricao');
+
+   R2 := Tstringlist.Create;
+   if MostrarTodas = true then
+      r2.Add('TODAS');
+
+   ds.First;
+   while (ds.Eof = false) do
+   begin
+      r2.Add(f.preencheCampo(41,' ','D', ds.Fields[0].AsString)+ ds.Fields[1].AsString) ;
+      ds.Next;
+   end;
+   ds.free();
+   GetTiposListas :=r2;
+end;
+
+procedure TfmMain.SalvaColDbgrid(NomeForm:string;Dbgrid:tdbgrid);
+var
+  i:integer;
+begin
+   for i:=0 to dbgrid.FieldCount-1 do
+    f.WParReg('listas','Z_' +NomeForm+ '_'+ IntToStr(i) , IntToStr(dbgrid.Columns[i].Width) );
+end;
+
+procedure TfmMain.LerColunasDbgrid(NomeForm:string;Dbgrid:tdbgrid);
+var
+  i:integer;
+begin
+   for i:=0 to dbgrid.FieldCount -1 do
+   begin
+      dbgrid.Columns[i].Title.Font.name := 'MS Sans Serif';
+      dbgrid.Columns[i].Title.Font.Style := [fsbold];
+      if f.RParReg('listas','Z_' +NomeForm+ '_'+ IntToStr(i) ) <> '' then
+         dbgrid.Columns[i].width := StrToint( f.RParReg('listas','Z_' +NomeForm+ '_'+ IntToStr(i))  );
+   end;
+end;
+
+procedure TfmMain.AbrirLista(num: string);
+begin
+   form2.Close;
+   fmMain.ProdutosnNasListas1Click(nil);
+   form3.chamaCarregamentoDeLista( num);
+end;
+
+function TfmMain.GetNumLojas(Loja:String): Tstrings;
+var
+	lst:TStringlist;
+begin
+	lst := dm.getListagem(dm.getCMD1('uo','getUOAcessada', loja), 0);
+
+   lst.Add('<Todas>');
+   lst.Sort();
+
+   result := lst;//dm.getListagem(' Exec stoObterNumLojas ' + quotedStr(loja) );
+end;
+
+procedure TfmMain.Query1AfterOpen(DataSet: TDataSet);
+begin
+   fmMain.sb.Panels[0].text := inttoStr(fmMain.query1.RecordCount) + ' Item(s).';
+end;
+
+procedure TfmMain.Configurao1Click(Sender: TObject);
+begin
+   winexec(pchar(Path + 'ConfigListas.exe'),sw_normal);
+   application.terminate;
+end;
+
+procedure TfmMain.ProdutosCompradosporpeodo1Click(Sender: TObject);
+begin
+  fmMain.EscondeMenu();
+  Application.CreateForm(TForm9, Form9);
+  Form9.show;
+end;
+
+function TfmMain.InVencLista(): string;
+begin
+   if cb1.ItemIndex <> 0 then
+      InVencLista := fdt.StrToSqlDate(DateToStr(fmMain.dp1.date))
+   else
+      InVencLista := quotedStr('01/01/2000');
+end;
+
+function TfmMain.FimVencLista(): string;
+begin
+   if cb1.ItemIndex <> 0 then
+      FimVencLista := fdt.StrToSqlDate(DateToStr(fmMain.dp2.date))
+   else
+      FimVencLista := quotedStr('12/31/2029');
+end;
+
+procedure TfmMain.cb1Change(Sender: TObject);
+begin
+   if cb1.ItemIndex = 0 then
+      groupbox1.Visible := false
+   else
+   begin
+      groupbox1.Visible := true;
+   end;
+   f.WParReg('listas','MostraListas',IntToStr(cb1.itemIndex) );
+end;
+
+procedure TfmMain.dp1Change(Sender: TObject);
+begin
+   if dp1.DateTime > dp2.DateTime then
+      dp2.DateTime := dp1.DateTime;
+end;
+procedure TfmMain.dp2Change(Sender: TObject);
+begin
+   if dp1.DateTime > dp2.DateTime then
+      dp1.DateTime := dp2.DateTime;
+end;
+
+function tfmMain.PosicaoBotoes(form:Tform):integer;
+var
+  i:integer;
+begin
+   for i := 0 to form.ComponentCount - 1 do
+      if form.Components[i] is TflatButton then
+         TflatButton(form.Components[i]).left := form.Width - TflatButton(form.Components[i]).Width - 10;
+   result:=0
+end;
+
+procedure tfmMain.atualizaDadosItensLista(nItens, nItensComprados, vItensComprados, nLista:String);
+begin
+   dm.execSQL( ' Update listas set qtItens = ' + nItens  +' , ' +
+                    'qtItensComprados = ' +  nItensComprados  +' , ' +
+                    'vlItensComprados = ' +  vItensCOmprados  +
+                    ' where numLista = '  + nLista);
+end;
+procedure TfmMain.VendasTotaisporlista1Click(Sender: TObject);
+begin
+   Application.CreateForm(TForm8, Form8);
+   form8.Show;
+   form8.perfil := 1;
+end;
+
+procedure TfmMain.Baixaavulsa1Click(Sender: TObject);
+begin
+   if  fmBaixaAvulsa = nil then
+   begin
+      fmMain.EscondeMenu();
+      Application.CreateForm(TfmBaixaAvulsa, fmBaixaAvulsa);
+      fmBaixaAvulsa.Show();
+   end;
+end;
+
+function TfmMain.GetParamBD(nParametro, loja: String):String;
+var
+   cmd:String;
+begin
+   // loja 99 indica que serve como parametro do programa
+   // ou loja ''
+   cmd := 'Select valor from configuracoes where param = ' + quotedStr(nParametro);
+   if (loja <> '') then
+      cmd := cmd + ' and loja = ' + quotedStr(loja);
+
+   cmd := dm.openSQL(cmd, 'valor');
+   f.gravaLog(' funcao GetParamBD() nParametro: ' + nParametro + ' loja ' + loja + 'result:<' + cmd +'>' ) ;
+   result := cmd;
+end;
+
+procedure TfmMain.FormResize(Sender: TObject);
+begin
+   Panel1.Left := fmMain.Width - panel1.Width-30;
+end;
+
+procedure TfmMain.N1Click(Sender: TObject);
+begin
+   menu.Items[2].Visible := not(menu.Items[2].Visible);
+end;
+
+procedure TfmMain.ConexaoWellWillExecute(Connection: TADOConnection;  var CommandText: WideString; var CursorType: TCursorType;  var LockType: TADOLockType; var CommandType: TCommandType;  var ExecuteOptions: TExecuteOptions; var EventStatus: TEventStatus;  const Command: _Command; const Recordset: _Recordset);
+begin
+   f.gravalog(CommandText);
+end;
+
+procedure TfmMain.FormActivate(Sender: TObject);
+begin
+   renomarArquivoUpgrade();
+   dp1.DateTime := now;
+   dp2.DateTime := now + 60;
+   cb1.ItemIndex := 1;
+   cb1Change(Sender);
+end;
+
+function TfmMain.getconexaoWell(): TADOconnection;
+var
+  con: TADOConnection;
+begin
+   con := TADOConnection.Create(nil);
+   with con do
+   begin
+      ConnectionString := 'Provider=SQLOLEDB.1;Password='+fmMain.RParReg('PassWordWell')  +';Persist Security Info=True;User ID='+ fmMain.RParReg('UserNameWell') +';Initial Catalog='+fmMain.RParReg('DBNameWell')+';Data Source='+ fmMain.RParReg('IpServerWell');
+      LoginPrompt := false;
+      ConnectionTimeout := 5000;
+   end;
+   result := con;
+end;
+
+function TfmMain.getAutorizadorWell(grupos, usuarios:String): String;
+var
+   ds:TdataSet;
+   users:TStringList;
+   cmd:String;
+begin
+   try
+      cmd :=
+      'select nm_usu, cd_usu, sn_ope from  wellcfreitas.dbo.dsusu where fl_ativo = 1 and (';
+
+      if ( grupos <> '') then
+      cmd := cmd + '  cd_grusu in ('+grupos+') ';
+
+      if ( usuarios <> '') then
+        if grupos <> '' then
+           cmd := cmd + ' or cd_usu in ('+usuarios+')'
+         else
+           cmd := cmd + ' cd_usu in ('+usuarios+')';
+
+        cmd := cmd + ')';
+
+      f.gravaLog(cmd);
+
+      ds:= dm.getDataSetQ(cmd);
+
+      // formulario para informar a senha
+      cmd := uAutorizacao.getUserAutorizador(ds);
+
+    except
+    begin
+       msg.msgErro('Erro ao processar autorização');
+       cmd  := '';
+    end;
+   end;
+   ds.free();
+   f.gravaLog('TfmMain.getAutorizadorWell(): resultado '+ cmd);
+   result := cmd;
+end;
+
+procedure TfmMain.imprimeRave(qr, qr2, qr3:TDataSet; nRelatorio:String; params:Tstrings);
+begin
+	if (getParamBD('imprimePdfPadrao', fmMain.RParReg('Loja')) = '1') then
+   begin
+   	impressaoRavePDF(qr, qr2, nRelatorio, params, getParamBD('arqSaidaPdfPadrao', fmMain.RParReg('Loja')))
+   end
+   else
+		imprimeParaImpressora(qr, qr2, qr3, nRelatorio, params);
+end;
+
+procedure TfmMain.imprimeParaImpressora(qr, qr2, qr3:TDataSet; nRelatorio:String; params:Tstrings);
+var
+  i:integer;
+begin
+   RvProject1.ProjectFile := f.getDirExe()+ 'EspelhoLista.rav';
+
+   f.gravaLog('imprimeRave():' + nRelatorio);
+
+   if qr <> nil then
+      RvDSConn.DataSet := qr;
+
+   if qr2 <> nil then
+      RvDSConn2.DataSet := qr2;
+
+   if qr3 <> nil then
+      RvDSConn3.DataSet := qr3;
+
+   gravaLog('Impressao de relatorio:' + nRelatorio);
+
+   if (params <> nil) then
+      for i:=0 to params.Count-1 do
+      begin
+         RvProject1.SetParam('Param'+intToStr(i), params[i]);
+         f.gravaLog('Param'+intToStr(i) +':'+ params[i])
+      end;
+
+	RvProject1.ExecuteReport(nRelatorio);
+
+   if (f.getIdxParam('-m') > -1) then
+      msg.msgErro('Desenvolvimento');
+end;
+
+procedure TfmMain.impressaoRavePDF(qr,qr2:TDataSet; nRelatorio:String; params:Tstrings;nmArquivo:String);
+begin
+   if(ExtractFilePath(nmArquivo) = '') then
+     nmArquivo := f.getDirLogs() + nmArquivo;
+
+   if ( ExtractFileExt(nmArquivo) = '') then
+     nmArquivo := nmArquivo + '.pdf';
+
+   RvSystem.SystemSetups := RvSystem.SystemSetups - [ssAllowSetup];
+   RvSystem.DefaultDest := rdFile;
+   RvSystem.DoNativeOutput:= false;
+   RvSystem.RenderObject:= rvRenderPDF;
+   RvSystem.OutputFileName:=  nmArquivo;
+
+   imprimeParaImpressora(qr, qr2, nil, nRelatorio, params);
+   RvSystem.SystemSetups := RvSystem.SystemSetups + [ssAllowSetup];
+   RvSystem.DefaultDest := rdPrinter;
+   RvSystem.DoNativeOutput:= true;
+end;
+
+function TfmMain.getPerfilImp():String;
+begin
+// resultados: D - deskjet M- matricial e I para usar o programa prFiles
+   result := copy( upperCase(f.RParReg('listas','TipoImp')), 01,01);
+end;
+
+procedure TfmMain.Geracaodecrdito1Click(Sender: TObject);
+var
+  usr:String;
+begin
+   if (fmMain.GetParamBD('GeraCredCompra', fmMain.RParReg('loja')) = '1') then
+   begin
+      usr :=  fmMain.getAutorizadorWell( '13', fmMain.GetParamBD('usrAutCredito', fmMain.RParReg('loja')));
+      if usr <> '' then
+      begin
+         VendasTotaisporlista1Click(nil);
+         form8.preparaTelaCredito(usr);
+      end
+   end
+   else
+      msg.msgErro(dm.getMsg('err.ljSemAcesso'));
+end;
+
+
+
+function TfmMain.isCodClClienteWell(cod: String): boolean;
+var
+  qr:TADOQuery;
+  aux:boolean;
+begin
+   qr := TADOQuery.Create(nil);
+   with qr do
+   begin
+      Connection := getconexaoWell();
+      CommandTimeout := 5;
+      sql.Add('Select nm_pes from dspes where cd_pes= ' + cod);
+      open();
+   end;
+   aux := (qr.IsEmpty = false);
+   qr.Connection.Free();
+   qr.Free();
+   result := aux;
+end;
+
+procedure TfmMain.Listaritensparaentrega1Click(Sender: TObject);
+begin
+   if ( fmEntCaminhao = nil) then
+   begin
+      Application.CreateForm(TfmEntCaminhao, fmEntCaminhao );
+      fmEntCaminhao.Show();
+   end;
+end;
+
+procedure TfmMain.FormShow(Sender: TObject);
+begin
+   if form4 <> nil then
+      Form4.Show();
+end;
+
+end.
+
+
